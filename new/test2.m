@@ -2,7 +2,7 @@
 % clear
 % dbstop if error
 % macaque = 'DG';
-% load(sprintf('D:\\Ensemble coding\\%sdata\\tooldata\\%sChannelselect.mat',macaque,macaque),'selected_coil_final');
+% load(sprintf('D:\\ensemble_coding\\%sdata\\tooldata\\%sChannelselect.mat',macaque,macaque),'selected_coil_final');
 % selected_blocks = {'MGv','MGnv','SG'};
 % % selected_coil_final = [7,65,36,13,17,16,18,20,24,19,28,62,41,75,76,32,49,79,43,81,83,85,88,90,92];
 % selected_coil_final = [7,9,13,17,18,19,21,22,23,24,25,27,35,38,39,41,51,61,73,74,80,82,84,87,89]+1;
@@ -11,7 +11,7 @@
 %     %load(sprintf('SSVEP_PIC_DATA_DG_MUA2_%s.mat',selected_bloc·ks{m}));
 % 
 %     % !!!!!!!!!!!!!!记得改时间!@!!!!!!!!!!!!!!!!!!!!!!!!
-%     data1 = load(sprintf('D:\\Ensemble Coding\\%sdata\\Processed_Event\\%s_EVENT_Days25_29_MUA2_%s.mat',macaque,macaque,selected_blocks{m}));
+%     data1 = load(sprintf('D:\\ensemble_coding\\%sdata\\Processed_Event\\%s_EVENT_Days25_29_MUA2_%s.mat',macaque,macaque,selected_blocks{m}));
 % 
 %     acc_real = [];
 %     data = [];
@@ -52,10 +52,10 @@
 %     [chance_level, accuracy, p_value] = SVM_Decoding_LR(data_new,n_shuffles,selected_blocks{m},savename);
 %     clear data
 %     % 记得改名字！！！！！！！！！！！！！！！！！！！
-%     save(sprintf('D:\\Ensemble Coding\\%sdata\\Decoding\\EVENTorientationSVM_%s_MUA2.mat',macaque,selected_blocks{m}),'chance_level','accuracy','p_value');
+%     save(sprintf('D:\\ensemble_coding\\%sdata\\Decoding\\EVENTorientationSVM_%s_MUA2.mat',macaque,selected_blocks{m}),'chance_level','accuracy','p_value');
 % end
 % Chance_Level = 1/18;
-% file_path = 'D:\\Ensemble Coding\\DGdata\\Decoding\\';
+% file_path = 'D:\\ensemble_coding\\DGdata\\Decoding\\';
 % for i = 1:length(selected_blocks)
 %      filename = sprintf('EVENTorientationSVM_%s_MUA2.mat',selected_blocks{i});
 %      Accuracy_file{i} = fullfile(file_path,filename);
@@ -66,7 +66,7 @@
 % clear;
 % dbstop if error
 % tic;
-% load('D:\\Ensemble Coding\\QQdata\\QQchannelselect.mat','selected_coil_final')
+% load('D:\\ensemble_coding\\QQdata\\QQchannelselect.mat','selected_coil_final')
 % selected_blocks = {'MGv','MGnv','SG'};
 % 
 % % 参数设置
@@ -203,9 +203,9 @@
 %     end
 % end
 % colormap('bone')
-% chanmap = load('D:\Ensemble coding\QQdata\QQChannelMap.mat');%QQchannelMap
-% load('D:\\Ensemble Coding\\QQdata\\QQchannelselect.mat','selected_coil_final');
-% % load('D:\\Ensemble coding\\QQdata\\QQcoilselect','coilselect');
+% chanmap = load('D:\ensemble_coding\QQdata\QQChannelMap.mat');%QQchannelMap
+% load('D:\\ensemble_coding\\QQdata\\QQchannelselect.mat','selected_coil_final');
+% % load('D:\\ensemble_coding\\QQdata\\QQcoilselect','coilselect');
 % for i = 1:96
 %     n = find(chanmap.QQchannelMap'==i);
 %     subplot(10,10,n);
@@ -263,8 +263,8 @@ Days = [34,40];
 condsel = [2,6];
 macaque = 'QQ';
 MUA_LFP = 'LFP';
-savepath = sprintf('D:/Ensemble Coding/%sdata/Processed_Event',macaque);
-Labels = {'MGv','MGnv','SG','fitMGv','normfitMGv','fitMGnv','normfitMGnv','centerSSGnv'};
+savepath = sprintf('D:/ensemble_coding/%sdata/Processed_Event',macaque);
+Labels = {'MGv','MGnv','SG'};
 % Labels = {'fitMGv','fitMGnv','centerSSGnv'};
 % Colors = [62,181,95;233,173,107;120,158,175;142,50,40]/255;
 Colors = [175,0,0;175,0,0;175,0,0;175,0,0;175,0,0;175,0,0;175,0,0;175,0,0;175,0,0;175,0,0;175,0,0;175,0,0]/255;
@@ -273,7 +273,8 @@ file_idx{i} = fullfile(savepath, sprintf('%s_SSVEPB_Days%d_%d_%s_%s.mat',macaque
 end
 % selected_coil_final = [74,67,69,68,72,81,1,33,35,39,45,82,34,36,38,40,86,7,51,53,87,6,9,17,15,55,8,58,57,91,92,25,21,60,94,14,20,27,29,64,61,56,28,30,59];
 selected_coil_final = [75,79,43,78,81,41,45,82,84,38,47,49,85,42,44,51,88,17,50,46,89,8,54,52,58,91,92,23,25,21,62,60,14,16,20,27,29,31,63,56,22,24,26,28];
-load(sprintf('D:/Ensemble coding/%sdata/tooldata/%schannelselect.mat',macaque,macaque),'selected_coil_final')
+load(sprintf('D:/ensemble_coding/%sdata/tooldata/%schannelselect.mat',macaque,macaque),'selected_coil_final')
+% selected_coil_final=[20,22,24];
 % selected_coil_final = [7,9,13,17,18,19,21,22,23,24,25,27,35,38,39,41,51,61,73,74,80,82,84,87,89]+1;
 plot_content_savepath = sprintf('%s_exp1b_%s_%s_fftplot',macaque,MUA_LFP,Labels{1});
 fftanalyse_plot(condsel,file_idx,Labels,Colors,selected_coil_final,plot_content_savepath)
@@ -294,7 +295,7 @@ fftanalyse_plot(condsel,file_idx,Labels,Colors,selected_coil_final,plot_content_
 % Colors = [62,181,95;233,173,107;120,158,175;142,50,40]/255;
 % file_idx = {'QQ_SSVEP_Days9_27_LFP_MGnv.mat','QQ_SSVEP_Days9_27_LFP_MGnv.mat','QQ_SSVEP_Days9_27_LFP_MGnv.mat'};
 % Labels = {'MGv','MGnv','SG'};
-% coilselectfile = 'D:\\Ensemble coding\QQdata\tooldata\QQchannelselect.mat';
+% coilselectfile = 'D:\\ensemble_coding\QQdata\tooldata\QQchannelselect.mat';
 % fftanalyse_plot(file_idx,Labels,Colors,coilselectfile)
 
 %% Meta_data名称标准化
@@ -332,7 +333,7 @@ fftanalyse_plot(condsel,file_idx,Labels,Colors,selected_coil_final,plot_content_
 dbstop if error
 label = {'MGv','MGnv','SG'};
 macaque = 'QQ';
-file_path = sprintf('D:/Ensemble coding/%sdata/Processed_Event/',macaque);
+file_path = sprintf('D:/ensemble_coding/%sdata/Processed_Event/',macaque);
 MUA_LFP = 'MUA2';
 for i = 1:length(label)
     filename = sprintf('%s_SSVEP1000hz_Days9_27_%s_%s.mat',macaque,MUA_LFP,label{i});
@@ -391,13 +392,13 @@ end
 end
 %% 绘制信号分布
 % EVENT
-% chanmap = load('D:\Ensemble coding\DGdata\tooldata\DGChannelMap.mat'); % QQchannelMap
-% load('D:\\Ensemble Coding\\DGdata\tooldata\\DGchannelselect.mat', 'selected_coil_final');
+% chanmap = load('D:\ensemble_coding\DGdata\tooldata\DGChannelMap.mat'); % QQchannelMap
+% load('D:\\ensemble_coding\\DGdata\tooldata\\DGchannelselect.mat', 'selected_coil_final');
 % load('plotkey.mat');
 % label = {'MGnv','MGv','SG'};
 % for l = 1:length(label)
 %     filename = sprintf('DG_EVENT_Days25_29_MUA2_%s.mat',label{l});
-%     data = load(fullfile('D:\Ensemble coding\DGdata\','Processed_Event',filename));
+%     data = load(fullfile('D:\ensemble_coding\DGdata\','Processed_Event',filename));
 %     % 创建一个新的图形窗口
 % 
 % 
@@ -432,8 +433,8 @@ end
 % end
 % SSVEP
 % % 加载数据
-% chanmap = load('D:\Ensemble coding\QQdata\tooldata\QQChannelMap.mat'); % QQchannelMap
-% load('D:\\Ensemble Coding\\DGdata\tooldata\\DGchannelselect.mat', 'selected_coil_final');
+% chanmap = load('D:\ensemble_coding\QQdata\tooldata\QQChannelMap.mat'); % QQchannelMap
+% load('D:\\ensemble_coding\\DGdata\tooldata\\DGchannelselect.mat', 'selected_coil_final');
 % load('plotkey.mat');
 % % 
 % data = [];
@@ -462,7 +463,7 @@ end
 % 
 % % label = {'MGnv','MGv','SG'};
 % % filename = sprintf('QQ_EVENT_Days2_27_MUA2_%s.mat',label{l});
-% data = load(fullfile('D:\Ensemble coding\QQdata\','Processed_Event',filename));
+% data = load(fullfile('D:\ensemble_coding\QQdata\','Processed_Event',filename));
 % 创建一个新的图形窗口
 
 
@@ -498,8 +499,8 @@ end
 %% SSVEP和EVETN图像合并
 % 图像位置会错乱
 % clear;
-% chanmap = load('D:\Ensemble coding\DGdata\tooldata\DGChannelMap.mat');
-% load('D:\\Ensemble Coding\\DGdata\tooldata\\DGchannelselect.mat', 'selected_coil_final');
+% chanmap = load('D:\ensemble_coding\DGdata\tooldata\DGChannelMap.mat');
+% load('D:\\ensemble_coding\\DGdata\tooldata\\DGchannelselect.mat', 'selected_coil_final');
 % load('plotkey.mat');
 % fig1 = openfig('EVENT_SG_DG.fig', 'reuse'); % 替换为您的第一个文件名
 % axes1 = findall(fig1, 'Type', 'Axes'); % 获取所有子图的句柄
@@ -589,8 +590,8 @@ end
 % %     end
 % %     SSVEP_PIC_DATA{i} = mm;
 % % end
-% chanmap = load(sprintf('D:\\Ensemble coding\\%sdata\\tooldata\\%sChannelMap.mat',macaque,macaque));%QQchannelMap
-% load(sprintf('D:\\Ensemble Coding\\%sdata\\tooldata\\%schannelselect.mat',macaque,macaque),'selected_coil_final')
+% chanmap = load(sprintf('D:\\ensemble_coding\\%sdata\\tooldata\\%sChannelMap.mat',macaque,macaque));%QQchannelMap
+% load(sprintf('D:\\ensemble_coding\\%sdata\\tooldata\\%schannelselect.mat',macaque,macaque),'selected_coil_final')
 % 
 % figure; % 创建一个新的图形窗口
 % 
@@ -686,8 +687,8 @@ end
 %%
 % data1 = squmean(data2,2);
 
-% chanmap = load('D:\Ensemble coding\QQdata\tooldata\QQChannelMap.mat');%QQchannelMap
-% load('D:\\Ensemble Coding\\QQdata\tooldata\\QQchannelselect.mat','selected_coil_final')
+% chanmap = load('D:\ensemble_coding\QQdata\tooldata\QQChannelMap.mat');%QQchannelMap
+% load('D:\\ensemble_coding\\QQdata\tooldata\\QQchannelselect.mat','selected_coil_final')
 % for i = 1:96
 %     n = find(chanmap.QQchannelMap'==i);
 %     subplot(10,10,n);

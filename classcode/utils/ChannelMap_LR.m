@@ -78,16 +78,16 @@ end
 highlight_channels = [];
 switch macaque
     case "DG"
-        map_file = 'D:\Ensemble coding\DGdata\tooldata\DGChannelMap.mat';
+        map_file = 'D:\ensemble_coding\DGdata\tooldata\DGChannelMap.mat';
         map_var_name = 'DGchannelMap';
     case "QQ"
-        map_file = 'D:\Ensemble coding\QQdata\tooldata\QQChannelMap.mat';
+        map_file = 'D:\ensemble_coding\QQdata\tooldata\QQChannelMap.mat';
         map_var_name = 'QQchannelMap';
         % 假设这个路径下的文件是存在的
-        highlight_data = load('D:\Ensemble Coding\QQdata\tooldata\QQchannelselect.mat', 'selected_coil_final');
+        highlight_data = load('D:\ensemble_coding\QQdata\tooldata\QQchannelselect.mat', 'selected_coil_final');
         highlight_channels = highlight_data.selected_coil_final;
 end
-
+highlight_channels = [74	67	68	72	45	38	40	86	7	87	58	91	92	25	94	29	64	61	56	30];
 try
     chanmap_struct = load(map_file);
     chanmap = chanmap_struct.(map_var_name);
@@ -126,7 +126,7 @@ for i = 1:num_channels_to_plot
     
     subplot(10, 10, n);
     hold on;
-    
+   
     is_highlighted = ismember(i, highlight_channels);
     
     % --- 5. 根据 plot_type 执行不同的绘图命令 ---
@@ -193,10 +193,10 @@ for i = 1:num_channels_to_plot
     if is_highlighted
         title_color = 'r';
         title_weight = 'bold';
+
     end
     title(num2str(i), 'Color', title_color, 'FontWeight', title_weight, 'FontSize', 8);
-    
-    box off;
+    box off
     hold off;
 end
 

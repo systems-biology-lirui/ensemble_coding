@@ -1,11 +1,11 @@
 %% SSVEP中抽出图像
 dbstop if error
 label = {'MGv'};
-macaque = 'QQ';
+macaque = 'DG';
 file_path = sprintf('D:/Ensemble coding/%sdata/Processed_Event/',macaque);
 MUA_LFP = 'MUA2';
 for i = 1:length(label)
-    filename = sprintf('%s_SSVEP_Days1_27_%s_%s.mat',macaque,MUA_LFP,label{i});
+    filename = sprintf('%s_SSVEP_Days4_15_%s_%s.mat',macaque,MUA_LFP,label{i});
     file_idx{i} = fullfile(file_path,filename);
 end
 label2 = 'Aold';
@@ -32,10 +32,10 @@ end
 for ori = 1:18
     for pattern = 1:6
         if ~isempty(MGv{ori,pattern})
-            MGv1{ori,pattern} = trialmean(MGv{ori,pattern});
+            MGv1{ori,pattern} = trialmean(MGv{ori,pattern},30);
             
             for location = 1:12
-                SSGv1{ori,pattern,location} = trialmean(SSGv{ori,pattern,location});
+                SSGv1{ori,pattern,location} = trialmean(SSGv{ori,pattern,location},30);
             end
 %             for m = 1:2
 %                 for trial = 1:5
@@ -97,7 +97,7 @@ clearvars -except fitMGv resMGv R W
 load('SSVEP_PIC_DATA_Anew_QQ_MUA2_MGv.mat')
 
 for i = 1:numel(SSVEP_PIC_DATA)
-    SSVEP_PIC_DATA{i} = trialmean(SSVEP_PIC_DATA{i}(:,1:94,:));
+    SSVEP_PIC_DATA{i} = trialmean(SSVEP_PIC_DATA{i}(:,1:94,:),30);
 end
 MGv = SSVEP_PIC_DATA;
 clear SSVEP_PIC_DATA
@@ -117,11 +117,14 @@ c = cat(4,resMGv{:});
 c = reshape(c,[mm,ch,100,18,6]);
 trainData2 = permute(reshape(permute(c,[5,1,2,3,4]),[mm*6,94,100,18]),[4,1,2,3]);
 
-load('D:\Ensemble coding\QQdata\tooldata\QQchannelselect.mat')
+% load('D:\ensemble_coding\QQdata\tooldata\QQchannelselect.mat')
 selected_coil_final = [79,43,78,81,47,49,85,42,46,89,58,91,92,25,21,62,60,20,27,22,24,26];
 % selected_coil_final = [75,79,43,78,81,41,45,82,84,38,47,49,85,42,44,51,88,17,50,46,89,8,54,52,58,91,92,23,25,21,62,60,14,16,20,27,29,31,63,56,22,24,26,28]
-[accuracies_cv_train1,accuracies_test1]= generalizationDecoding(trainData1(:,:,selected_coil_final,:),testData(:,:,selected_coil_final,:));
-[accuracies_cv_train2,accuracies_test2]= generalizationDecoding(trainData2(:,:,selected_coil_final,:),testData(:,:,selected_coil_final,:));
+
+%% 1B orientation
+[accuracies_cv_train1,accuracies_test1]= generalizationDecoding(trainData1(:,:,selected_coil_final,:),testData(:,:,selected_coil_final,:),'temporal');
+[accuracies_cv_train2,accuracies_test2]= generalizationDecoding(trainData2(:,:,selected_coil_final,:),testData(:,:,selected_coil_final,:),'temporal');
+
 figure;
 subplot(1,2,1)
  hold on
@@ -132,7 +135,24 @@ subplot(1,2,2)
  hold on
 plot(smooth(accuracies_cv_train2))
 plot(smooth(accuracies_test2))
+%% 1B pattern
+accuracies_pattern1 = zeros(18,100);
+accuracies_pattern2 = zeros(18,100);
+for ori = 1:18
+    traindata1 = permute(squeeze(a(:,:,:,ori,:)),[4,1,2,3]);
+    traindata2 = permute(squeeze(c(:,:,:,ori,:)),[4,1,2,3]);
+    testdata = permute(squeeze(b(:,:,:,ori,:)),[4,1,2,3]);
+    [accuracies_pattern1(ori,:),accuracies_test1(ori,:)]= generalizationDecoding(traindata1(:,:,selected_coil_final,:), ...
+        testdata(:,:,selected_coil_final,:),'temporal');
+    [accuracies_pattern2(ori,:),accuracies_test2(ori,:)]= generalizationDecoding(traindata2(:,:,selected_coil_final,:), ...
+        testdata(:,:,selected_coil_final,:),'temporal');
+    % [acc_real_mean, p_value, perm_accuracies_mean,detailed_results,mm] = SVM_Decoding_LR(traindata1(:,1:72,selected_coil_final,:),0,50);
+end
 
+figure;
+plot(squmean(accuracies_pattern1,1));
+hold on
+plot(squmean(accuracies_pattern2,1));
 %%
 ch =94;
 mm = 133;
@@ -250,12 +270,11 @@ plot(smooth(acc_real_mean1),'LineWidth',2,'Color','b');
 %     disp(i)
 % end
 
-function finaldata = trialmean(data)
+function finaldata = trialmean(data,minnum)
     [trialnum,channel,time] =  size(data);
-    m = floor(trialnum/5);
-    n = trialnum-mod(trialnum,5);
-    o = n/m;
+    m = floor(trialnum/minnum);
+    n = minnum*m;
     
-    midata = reshape(data(1:n,:,:),[o,m,channel,time]);
+    midata = reshape(data(1:n,:,:),[minnum,m,channel,time]);
     finaldata = squmean(midata,2);
 end

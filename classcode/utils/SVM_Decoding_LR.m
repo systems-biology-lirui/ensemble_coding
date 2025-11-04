@@ -1,4 +1,4 @@
-function [acc_real_mean, p_value, perm_accuracies_mean,detailed_results] = SVM_Decoding_LR(decodingdata, do_permutation, n_shuffles)
+function [acc_real_mean, p_value, perm_accuracies_mean,detailed_results,mm] = SVM_Decoding_LR(decodingdata, do_permutation, n_shuffles)
 % SVM_DECODING_LR - 执行MVPA解码，并可选择性地进行排列检验。
 %
 % 语法:
@@ -84,7 +84,7 @@ else
     fprintf('Permutation test is DISABLED.\n');
 end
 fprintf('----------------------------------------\n');
-
+mm= {};
 % --- 2. 逐时间点解码循环 (使用 parfor 加速) ---
 for t_idx = 1:n_time
     
@@ -92,9 +92,16 @@ for t_idx = 1:n_time
     if mod(t_idx, 20) == 0 || t_idx == 1
         fprintf('Processing time point %d/%d...\n', t_idx, n_time);
     end
-    
+    delay = 3;
     % 提取并重塑当前时间点的数据
-    X_time_t = squeeze(decodingdata(:, :, :, t_idx));
+    if t_idx  <= delay
+        t_win = 1:t_idx;
+    elseif t_idx+delay > n_time
+        t_win = t_idx:n_time;
+    else
+        t_win =  (t_idx-delay):(t_idx+delay);
+    end
+    X_time_t = squmean(decodingdata(:, :, :,t_win),4);
     X = reshape(permute(X_time_t, [2, 1, 3]), num_samples, n_coil);
     
     % --- 2.1 计算真实解码准确率 ---
@@ -118,7 +125,7 @@ for t_idx = 1:n_time
         model = fitcdiscr(X_train_std, labels_original(trainIdx), 'DiscrimType', 'pseudoLinear');
         % model = fitcecoc(X_train_std, labels_original(trainIdx), 'Learners', templateSVM('KernelFunction', 'linear'), 'Coding', 'onevsall');
         pred = predict(model, X_test_std);
-        
+        % mm{t_idx,f} = model.Coeffs;
         fold_acc_real(f) = mean(pred == labels_original(testIdx));
         current_time_labels{f} = labels_original(testIdx);
         current_time_predictions{f} = pred;

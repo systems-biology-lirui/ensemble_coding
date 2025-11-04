@@ -28,11 +28,11 @@ function Event_analysis_pipeline()
     % --- Key Parameters for Signal Extraction ---
     preidx = {[2:4,9:14,17,18,22:25,27], ...    % QQ
         25:29, ...                                               % DG
-        39:40};                                 
+        39:42};                                 
         
     USER_SETTINGS.EXTRACTION_DAYS         = preidx{3};  % Days for signal extraction
-    USER_SETTINGS.EXTRACTION_DATA_TYPE    = 'MUA2';       % 'MUA1', 'MUA2', 'LFP'
-    USER_SETTINGS.EXTRACTION_BLOCKS       = {'SSGnv'};% {'MGv', 'MGnv', 'SG', 'blank'};
+    USER_SETTINGS.EXTRACTION_DATA_TYPE    = 'LFP';       % 'MUA1', 'MUA2', 'LFP'
+    USER_SETTINGS.EXTRACTION_BLOCKS       = {'SG','MGv','MGnv','SSGnv'};% {'MGv', 'MGnv', 'SG', 'blank'};
 
     % --- Key Parameters for Decoding ---
     USER_SETTINGS.DECODING_DAYS           = 25:29;        % Days for decoding analysis
@@ -116,7 +116,7 @@ function config = get_experiment_config(USER_SETTINGS)
     config.PicDataParams.pictime_samples          = 20;
     config.PicDataParams.timewindow_relative      = -19:80; % Relative to picture onset in samples
     config.PicDataParams.pics_indices_in_sequence = [1,14,27,40]; % Which pictures in trial sequence to analyze
-    config.PicDataParams.num_channels             = 96; % Assumed fixed, or could be derived from data
+    config.PicDataParams.num_channels             = 94; % Assumed fixed, or could be derived from data
 
     % --- Parameters for Decoding ---
     config.decode_params.Days                 = USER_SETTINGS.DECODING_DAYS;
@@ -143,12 +143,12 @@ function config = get_experiment_config(USER_SETTINGS)
 
     % --- Macaque-Specific Path Settings ---
     if config.is_DG
-        config.paths.base           = 'D:\Ensemble coding\DGdata\';
+        config.paths.base           = 'D:\ensemble_coding\DGdata\';
         config.paths.raw_data_input = fullfile(config.paths.base,'500hzdata');
         config.paths.stim_info      = fullfile(config.paths.base, 'tooldata','DG_metadata_Event.mat');
         config.paths.session_idx    = fullfile(config.paths.base, 'tooldata', 'DGSessionIdx.mat');
     elseif config.is_QQ
-        config.paths.base           = 'D:\Ensemble coding\QQdata\';
+        config.paths.base           = 'D:\ensemble_coding\QQdata\';
         config.paths.raw_data_input = fullfile(config.paths.base,'500hzdata');
         config.paths.stim_info      = fullfile(config.paths.base,'tooldata','QQ_metadata_Event.mat');
         config.paths.session_idx    = fullfile(config.paths.base,'tooldata', 'QQSessionIdx.mat');
@@ -249,7 +249,11 @@ function run_signal_extraction(config)
             if strcmpi(mua_lfp_idx,'MUA1') 
                 neural_data_for_session = Datainfo.trial_MUA{1};
             elseif strcmpi(mua_lfp_idx,'MUA2') 
-                neural_data_for_session = Datainfo.trial_MUA{2};
+                if length(Datainfo.trial_MUA) ==1
+                    neural_data_for_session = Datainfo.trial_MUA{1};
+                else
+                    neural_data_for_session = Datainfo.trial_MUA{2};
+                end
             elseif strcmpi(mua_lfp_idx,'LFP') 
                 neural_data_for_session = Datainfo.trial_LFP;
             else

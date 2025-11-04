@@ -17,9 +17,11 @@ neural_data = cat(1,neural_data,neural_data(2,:,:)-neural_data(5,:,:));
 % end
 % 
 % neural_data = neural_data(:,:,1:50);
+%%
 [~,num_channels,num_timepoints] = size(neural_data);
-labelall = {'MGv','MGnv','SG','centerSSGnv','fitMGnv','sumMGnv','resMGnv'};
-conditionselect = [1,2,5,7];
+% labelall = {'MGv','MGnv','SG','centerSSGnv','fitMGnv','sumMGnv','resMGnv'};
+labelall = {'MGvday1','MGvday2','MGvday3','MGvday4','MGnvday1','MGnvday2','MGnvday3','MGnvday4','MGnvday5'};
+conditionselect = 1:8;
 X_combined = zeros(num_timepoints*length(conditionselect),num_channels);
 for c = 1:length(conditionselect)
     % 提取条件1和条件2的数据

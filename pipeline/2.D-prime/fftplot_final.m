@@ -6,9 +6,10 @@ clc;
 
 % 加载数据
 load('QQ_exp1b_LFP_MGv_fftplot.mat');
-Labels = {'MGv','MGnv','SG','fitMGv','normfitMGv','fitMGnv','normfitMGnv','centerSSGnv'};
-load('D:\Ensemble coding\QQdata\tooldata\QQchannelselect.mat')
+Labels = {'MGv','MGnv','SG'};
+load('D:\ensemble_coding\QQdata\tooldata\QQchannelselect.mat')
 selchannel =  [75,79,43,78,81,41,45,82,84,38,47,49,85,42,44,51,88,17,50,46,89,8,54,52,58,91,92,23,25,21,62,60,14,16,20,27,29,31,63,56,22,24,26,28];
+
 % 定义常量和参数
 Fs = 500;
 N = 1600;

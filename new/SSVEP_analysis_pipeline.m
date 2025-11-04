@@ -5,8 +5,6 @@ function SSVEP_analysis_pipeline()
     %
     % The pipeline consists of:
     % 1. Signal Extraction: Processes raw data to extract neural signals for different experimental blocks.
-    % 2. Decoding Analysis: Performs SVM-based decoding on the extracted signals.
-    % 3. Plotting: Generates plots of decoding accuracy.
 
     clear;
     dbstop if error;
@@ -17,8 +15,7 @@ function SSVEP_analysis_pipeline()
     % =========================================================================
     
     % --- Top-Level Choices ---
-    USER_SETTINGS.MACAQUE_TO_PROCESS = 'QQ'; % Options: 'DG', 'QQ'
-    % USER_SETTINGS.MACAQUE_TO_PROCESS = 'DG'; 
+    USER_SETTINGS.MACAQUE_TO_PROCESS = 'DG'; % Options: 'DG', 'QQ'
 
     % --- Pipeline Stage Flags ---
     USER_SETTINGS.RUN_SIGNAL_EXTRACTION = true;
@@ -26,7 +23,7 @@ function SSVEP_analysis_pipeline()
     USER_SETTINGS.RUN_PLOTTING          = false;
 
     % --- Key Parameters for Signal Extraction ---
-    USER_SETTINGS.A_B                     = 'A';
+    USER_SETTINGS.A_B                     = 'B';
     % QQ 后两天的通道数量不对，先不进行采集
     preidx = {[1,5:8,11:13,15,17,18,21:23,25:27]; ...   % QQ_A
         [9,10,14,16,19,20,24,27,28,29]; ...             % QQ_B
@@ -35,9 +32,9 @@ function SSVEP_analysis_pipeline()
         [3:15]; ...                                     % DG_A
         [16:23]};                                       % DG_B
 
-    USER_SETTINGS.EXTRACTION_DAYS         = preidx{1};     % Days for signal extraction
+    USER_SETTINGS.EXTRACTION_DAYS         = preidx{6};     % Days for signal extraction
     USER_SETTINGS.EXTRACTION_DATA_TYPE    = 'MUA2';              % 'MUA1', 'MUA2', 'LFP'
-    USER_SETTINGS.EXTRACTION_BLOCKS       = {'MGv'};
+    USER_SETTINGS.EXTRACTION_BLOCKS       = {'SG'};
     USER_SETTINGS.EXTRACTION_SSG_LOCATION = 1:13;                % 内存的原因，对于位置进行分离
     % =========================================================================
 
@@ -113,14 +110,14 @@ function config = get_experiment_config(USER_SETTINGS)
     
     % --- Macaque-Specific Path Settings ---
     if config.is_DG
-        config.paths.base           = 'D:\Ensemble coding\DGdata\';
+        config.paths.base           = 'D:\ensemble_coding\DGdata\';
         config.paths.raw_data_input = fullfile(config.paths.base,'500hzdata');
         config.paths.stim_info      = fullfile(config.paths.base, 'tooldata','DG_metadata_SSVEP.mat');
         config.paths.session_idx    = fullfile(config.paths.base, 'tooldata', 'DGSessionIdx.mat');
     elseif config.is_QQ
-        config.paths.base           = 'D:\Ensemble coding\QQdata\';
+        config.paths.base           = 'D:\ensemble_coding\QQdata\';
         config.paths.raw_data_input = fullfile(config.paths.base,'500hzdata');
-        % config.paths.raw_data_input = 'D:\Ensemble coding\tools\1B_MUA';
+        % config.paths.raw_data_input = 'D:\ensemble_coding\tools\1B_MUA';
         config.paths.stim_info      = fullfile(config.paths.base,'tooldata','QQ_metadata_SSVEP.mat');
         config.paths.session_idx    = fullfile(config.paths.base,'tooldata', 'QQSessionIdx.mat');
     else
@@ -188,7 +185,7 @@ function run_signal_extraction(config)
             elseif strcmp(config.process_params.selected_blocks,'SSGv')
                 z = 8;
             else
-                z = 3:5;
+                z = 7;
             end
             session_file_numbers = [sessionIdx_data{z, current_day_val}];
             u_day_prefix = sprintf('u%d', sessionIdx_data{1, current_day_val});

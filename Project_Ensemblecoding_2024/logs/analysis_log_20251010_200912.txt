@@ -1,0 +1,29 @@
+Command window output is being logged to:
+D:\ensemble_coding\Project_Ensemblecoding_2024\logs\analysis_log_20251010_200912.txt
+
+============================================================
+Initializing SSVEP Macaque Analysis Pipeline...
+============================================================
+Project Root Directory: D:\ensemble_coding\Project_Ensemblecoding_2024
+Added 'code' directory and its subdirectories to MATLAB path.
+
+Loading experiment configuration for macaque: QQ...
+Configuration loaded successfully.
+
+------------------------------------------------------------
+Starting Pipeline Execution...
+------------------------------------------------------------
+
+====== STAGE 1: SIGNAL EXTRACTION ======
+Loading session index from: D:\ensemble_coding\Project_Ensemblecoding_2024\data\raw\QQ\metadata\QQSessionIdx.mat
+{错误使用 <a href="matlab:matlab.internal.language.introspective.errorDocCallback('load')" style="font-weight:bold">load</a>
+找不到文件或目录
+'D:\ensemble_coding\Project_Ensemblecoding_2024\data\raw\QQ\metadata\QQSessionIdx.mat'。
+
+出错 <a href="matlab:matlab.internal.language.introspective.errorDocCallback('run_signal_extraction', 'D:\ensemble_coding\Project_Ensemblecoding_2024\code\scripts\run_signal_extraction.m', 16)" style="font-weight:bold">run_signal_extraction</a> (<a href="matlab: opentoline('D:\ensemble_coding\Project_Ensemblecoding_2024\code\scripts\run_signal_extraction.m',16,0)">第 16 行</a>)
+    load(config.paths.session_idx, 'SessionIdx');
+
+出错 <a href="matlab:matlab.internal.language.introspective.errorDocCallback('main_analyse', 'D:\ensemble_coding\Project_Ensemblecoding_2024\main_analyse.m', 103)" style="font-weight:bold">main_analyse</a> (<a href="matlab: opentoline('D:\ensemble_coding\Project_Ensemblecoding_2024\main_analyse.m',103,0)">第 103 行</a>)
+    run_signal_extraction(config); % This function will be moved to code/scripts/
+} 
+if system_dependent('IsDebugMode')==1, dbquit; end

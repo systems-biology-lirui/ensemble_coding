@@ -68,14 +68,23 @@ disp('-----------------------------------');
 
 % --- Step 2: 根据选择的模式执行解码循环 ---
 disp(['Step 2: Starting classification loop (Mode: ', decodingMode, ')...']);
-
+delay = 2;
 switch decodingMode
     
     case 'temporal' % 原始功能：高效的对角线解码
         parfor t = 1:nTimePoints
+            if t <=  delay
+                idx = 1:(t+delay)
+            elseif t> 100-delay
+                idx = t:100;
+            else
+                idx = (t-delay):(t+delay);
+            end
+
+               
             % 提取和重塑当前时间点的数据
-            X_train_t = reshape(permute(trainData(:, :, :, t), [2, 1, 3]), [nTrainSamples, nChannels]);
-            X_test_t  = reshape(permute(testData(:, :, :, t), [2, 1, 3]), [nTestSamples, nChannels]);
+            X_train_t = reshape(permute(squmean(trainData(:, :, :, idx),4), [2, 1, 3]), [nTrainSamples, nChannels]);
+            X_test_t  = reshape(permute(squmean(testData(:, :, :, idx),4), [2, 1, 3]), [nTestSamples, nChannels]);
             
             % Part A: 交叉验证 (使用高效的内置函数)
             cv_model = fitcecoc(X_train_t, Y_train, 'Learners', template, 'CVPartition', cvp);
@@ -83,9 +92,9 @@ switch decodingMode
             accuracies_cv_train(t) = 1 - cv_loss;
             
             % Part B: 在独立测试集上测试
-            final_model = fitcecoc(X_train_t, Y_train, 'Learners', template);
-            predictions = predict(final_model, X_test_t);
-            accuracies_test(t) = sum(predictions == Y_test) / nTestSamples;
+            % final_model = fitcecoc(X_train_t, Y_train, 'Learners', template);
+            % predictions = predict(final_model, X_test_t);
+            % accuracies_test(t) = sum(predictions == Y_test) / nTestSamples;
             
             if mod(t, 20) == 0
                 fprintf('Temporal Decoding - Time point %d/%d processed.\n', t, nTimePoints);
