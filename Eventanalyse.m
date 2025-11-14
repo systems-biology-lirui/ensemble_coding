@@ -14,8 +14,8 @@ EVENT_Pic_Preallocated(file_idx, mua_lfp, label, label2)
 
 
 %% centerSSGnv
-date = 25:29;
-load(sprintf('D:\\ensemble_coding\\DGdata\\Processed_Event\\DG_EVENT_Days%d_%d_MUA2_SSGnv.mat',date(1),date(end)));
+date = 39:42;
+load(sprintf('D:\\ensemble_coding\\QQdata\\Processed_Event\\QQ_EVENT_Days%d_%d_LFP_SSGnv.mat',date(1),date(end)));
 condition = 1:18;
 for i = 1:18; centerSSGnv(i).Block = 'centerSSGnv'; centerSSGnv(i).Target_Ori = condition(i); centerSSGnv(i).Location = 13;end
 for i = 1:18
@@ -23,42 +23,54 @@ for i = 1:18
     centerSSGnv(i).Pattern = SSGnv(216+i).Pattern;
     centerSSGnv(i).Pic_Ori = SSGnv(216+i).Pic_Ori;
 end
-save(sprintf('D:\\ensemble_coding\\DGdata\\Processed_Event\\DG_EVENT_Days%d_%d_MUA2_centerSSGnv.mat',date(1),date(end)),'centerSSGnv');
+save(sprintf('D:\\ensemble_coding\\QQdata\\Processed_Event\\QQ_EVENT_Days%d_%d_LFP_centerSSGnv.mat',date(1),date(end)),'centerSSGnv');
 
 %% Decoding1
+a = {'DG','QQ','QQ'};
+b = {'DG','QQ_old','QQ_new'};
+c = {'LFP','MUA2'};
+d = [25,29; 2,27; 39,42];
+label = {'fitMGnv','resMGnv'};
+load('sel_channel_Yge.mat','sel_channel');
+for macaque_idx = 1:33
+    macaque = a{macaque_idx};
+    file_path = sprintf('D:/ensemble_coding/%sdata/Processed_Event/',macaque);
+    for data_idx = 2
+        mua_lfp = c{data_idx};
+        channels = sel_channel.(b{macaque_idx});
+        
+        % subtitles = {'channelsnum = 20','channelsnum = 45','channelsnum = 20','channelsnum = 45'};
 
-label = {'MGv','MGnv','SG','centerSSGnv'};
-macaque = 'DG';
-file_path = sprintf('D:/ensemble_coding/%sdata/Processed_Event/',macaque);
-mua_lfp = 'MUA2';
-channel1 = [27,24,29,26,62,31,28,64,30,59,61,32];
-% channel1 =[74,67,68,72,45,38,40,86,7,87,58,91,92,25,94,29,64,61,56,30];
-channel2 = [74,67,69,68,72,81,1,33,35,39,45,82,34,36,38,40,86,7,51,53,87,6,9,17,15,55,8,58,57,91,92,25,21,60,94,14,20,27,29,64,61,56,28,30,59];
-channel3 = 1:96;
-channels{1} = channel1;
-channels{2} = channel2;
-channels{3} = channel3;
-subtitles = {'channelsnum = 20','channelsnum = 45','channelsnum = 20','channelsnum = 45'};
+        for i = 1:length(label)
+            data_date = d(macaque_idx,:);
+            filename = sprintf('%s_EVENT_Days%d_%d_%s_%s.mat',macaque,data_date(1),data_date(2),mua_lfp,label{i});
+            file_idx{i} = fullfile(file_path,filename);
+        end
+        for i = 1:length(label)
+            fprintf(label{i})
+            predata = load(file_idx{i});
+            minnum = 1000;
+            for ori = 1:18
+                ori_num = size(predata.(label{i})(ori).Data,1);
+                if ori_num<minnum
+                    minnum = ori_num;
+                end
+            end
+            data = zeros(18,minnum,length(channels),100,'single');
+            for ori = 1:18
+                data(ori,:,:,:) = predata.(label{i})(ori).Data(1:minnum,channels,:);
+            end
 
-for i = 1:length(label)
-    filename = sprintf('%s_EVENT_Days25_29_%s_%s.mat',macaque,mua_lfp,label{i});
-    file_idx{i} = fullfile(file_path,filename);
-end
-figure;
-for i = 1:length(label)
-    fprintf(label{i})
-    predata = load(file_idx{i});
-    data = [];
-    for ori = 1:18
-        data(ori,:,:,:) = predata.(label{i})(ori).Data(1:140,:,:);
-    end
-    for c = 1
-    [acc1, p_value, perm_accuracies_mean,detailed_results] = SVM_Decoding_LR(single(data([1,9],:,channels{c},:)), 1, 50);
-    acc_all{i,c} = acc1;
-    p{i,c} = p_value;
-    shuffle{i,c} = perm_accuracies_mean;
+            [acc1, p_value, perm_accuracies_mean,detailed_results,linear_weight] = SVM_Decoding_LR(data, 1, 5,5);
+            decoding_result.acc_all.(b{macaque_idx}){i,data_idx} = acc1;
+            decoding_result.p.(b{macaque_idx}){i,data_idx} = p_value;
+            decoding_result.shuffle.(b{macaque_idx}){i,data_idx} = perm_accuracies_mean;
+            decoding_result.details.(b{macaque_idx}){i,data_idx} = detailed_results;
+            decoding_result.linear.(b{macaque_idx}){i,data_idx} = linear_weight;
+        end
     end
 end
+% save('decoding_result_Yge_fitres.mat',"decoding_result",'-v7.3');
 %%
 Colors = lines(4);
 for i = [1,3]
@@ -80,7 +92,7 @@ for i = [1,3]
     ylim([0.4,1])
 end
 
-%% Decoding2
+%% Decoding2(pattern之间会进行平均)
 label = {'MGv','MGnv','SG','centerSSGnv'};
 
 for l = 1:length(label)
@@ -101,6 +113,94 @@ for l = 1:length(label)
     accuracy{l} = accuracies_cv_train1;
     accg{l} = accuracies_test1;
 end
+%% Decoding Plot
+figure;
+b = {'DG','QQ_old','QQ_new'};
+c = {'LFP','MUA2'};
+for macaque_idx = 1:3
+    for data_idx = 2
+        mua_lfp = c{data_idx};
+        subplot(3,2,(macaque_idx-1)*2+data_idx);
+        hold on
+        Colors = lines(4);
+        for i = 1:4
+
+            accuracy = cell2mat(decoding_result.details.(b{macaque_idx}){i,data_idx}.real_acc_dist)';
+            Chance_Level = cell2mat(decoding_result.details.(b{macaque_idx}){i,data_idx}.perm_acc_dist)';
+            [n_timepoints,n_shuffle] = size(Chance_Level);
+            
+            % 绘制Accuracy()
+            plot(1:n_timepoints,mean(accuracy,2),'LineWidth',1.5,'Color',Colors(i,:));
+            plot(1:n_timepoints,mean(Chance_Level,2),'LineWidth',1.5,'Color',[0.5,0.5,0.5]);
+            
+            % 绘制标准误
+            accuracy_mean = mean(accuracy,2)';
+            accuracy_std = std(accuracy,0,2)';
+            x = 1:n_timepoints;
+            fill([x fliplr(x)], [accuracy_mean+accuracy_std fliplr(accuracy_mean-accuracy_std)],...
+                Colors(i,:), 'EdgeColor', 'none', 'FaceAlpha', 0.3);
+
+
+            chance_mean = mean(Chance_Level,2)';
+            chance_std = std(Chance_Level,0,2)';
+            fill([x fliplr(x)], [chance_mean+chance_std fliplr(chance_mean-chance_std)],...
+                [0.5,0.5,0.5], 'EdgeColor', 'none', 'FaceAlpha', 0.1);
+
+            p_value = decoding_result.p.(b{macaque_idx}){i,data_idx};
+
+            % 绘制显著点
+            m = find(p_value<=0.01);
+            y_marker_pos = 1/18-0.01*i;
+            stem(m, repmat(y_marker_pos, size(m)), '.', 'MarkerFaceColor', 'k', ...
+                'MarkerSize', 5, 'LineWidth', 1, 'Clipping', 'off','LineStyle','none','MarkerEdgeColor',Colors(i,:));
+
+        end
+        subtitle(sprintf('%s %s',b{macaque_idx},c{data_idx}));
+
+        ax = gca;
+        ax.LineWidth = 2;
+        ax.FontSize = 12;
+        ax.FontWeight = 'bold';
+        ax.XAxis.FontSize = 12;
+        ax.YAxis.FontSize = 12;
+        ax.XAxis.FontWeight = 'bold';
+
+        xticks(0:10:100);
+        xticklabels({'-40','-20','0','20','40','60','80','100','120','140','160'});
+    end
+end
+
+
+%% Decoding 权重编码轨迹
+a = {'DG','QQ','QQ'};
+b = {'DG','QQ_old','QQ_new'};
+c = {'LFP','MUA2'};
+
+for macaque_idx = 3
+    for data_idx = 1
+        mua_lfp = c{data_idx};
+        subplot(3,2,(macaque_idx-1)*2+data_idx);
+        hold on
+        linear_data = {};
+        for t = 1:100
+            for i = 1:4
+                idx = tril(true(18),-1);
+                data = decoding_result.linear.(b{macaque_idx}){i,data_idx}{1,t}(idx);
+                linear_data{i}(t,:) = mean(cat(2,data{:}),2);
+            end
+        end
+        plot_options = struct();
+        plot_options.legend_labels = {'fitMGnv','resMGnv'};
+        % plot_options.legend_labels = {'fitMGnv','resMGnv'};
+        plot_options.main_title = sprintf('Analysis for %s - %s', b{macaque_idx}, c{data_idx});
+        
+        % 自定义时间轴
+        plot_options.time_axis_info.ticks = 0:10:100;
+        plot_options.time_axis_info.labels = {'-40','-20','0','20','40','60','80','100','120','140','160'};
+        [results, handles] = analyzeAndPlotTrajectories(linear_data, [1, 2], plot_options);
+    end
+end
+
 
 function finaldata = trialmean(data,minnum)
     [trialnum,channel,time] =  size(data);
