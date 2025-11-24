@@ -98,6 +98,10 @@ classdef NeuroAnalyzer < handle
             p = inputParser;
             addParameter(p, 'AverageRepeats', false, @islogical); % 新增开关
             addParameter(p, 'Verbose', true, @islogical);
+            % [新增] 保存选项
+            addParameter(p, 'Save', false, @islogical);
+            addParameter(p, 'SaveDir', '', @ischar); % 默认为空，自动推导
+
             parse(p, varargin{:});
             doAvg = p.Results.AverageRepeats;
             verbose = p.Results.Verbose;
@@ -291,8 +295,74 @@ classdef NeuroAnalyzer < handle
             end
 
             if verbose, fprintf('=== 完成 ===\n'); end
+
+            if doSave
+                if obj.Config.Verbose, fprintf('  [Save] 正在保存切片数据...\n'); end
+                obj.save_epoch_dataset(epochData, epochMeta, doAvg, saveDir);
+            end
         end
+        function save_epoch_dataset(obj, data, meta, isAveraged, targetDir)
+            % SAVE_EPOCH_DATASET 保存切片后的数据
+            % data: 切片数据矩阵
+            % meta: 元数据 Table
+            % isAveraged: 逻辑值，文件名会据此标记为 'Avg' 或 'Raw'
+            % targetDir: (可选) 目标文件夹
 
+            % 1. 确定保存目录
+            if nargin < 5 || isempty(targetDir)
+                % 自动推导: 假设当前数据在 .../Data/01_Database/
+                % 我们想存到 .../Data/02_EpochDatabase/
 
+                % 获取 DataPath 的上上级目录 (即 Data 文件夹)
+                [parentDir, ~, ~] = fileparts(fileparts(obj.DataPath));
+                baseDir = fullfile(parentDir, '02_EpochDatabase');
+            else
+                baseDir = targetDir;
+            end
+
+            if ~exist(baseDir, 'dir')
+                mkdir(baseDir);
+                fprintf('  [Info] 创建文件夹: %s\n', baseDir);
+            end
+
+            % 2. 构建文件名
+            % 格式: Subject_Block_Paradigm_DataType_Epochs_Avg.mat
+            % 从文件名或 Config 中提取必要信息
+
+            % 尝试从 DataPath 提取文件名主体
+            [~, rawName, ~] = fileparts(obj.DataPath);
+            % rawName 类似于: QQ_MGv_SSVEP_B_MUA2Master
+
+            % 去掉结尾的 "Master" (如果有)
+            coreName = erase(rawName, 'Master');
+
+            % 添加后缀
+            if isAveraged
+                suffix = 'Epochs_Avg';
+            else
+                suffix = 'Epochs_Raw';
+            end
+
+            saveName = sprintf('%s_%s.mat', coreName, suffix);
+            savePath = fullfile(baseDir, saveName);
+
+            % 3. 打包数据结构
+            EpochDB.Data = data;
+            EpochDB.Meta = meta;
+            EpochDB.Config = obj.Config; % 重要！保存当时的切片配置
+            EpochDB.IsAveraged = isAveraged;
+            EpochDB.Timestamp = datetime('now');
+
+            % 4. 保存
+            fprintf('  [IO] 保存至: %s ... ', savePath);
+            try
+                % 使用 -v7.3 以支持大于 2GB 的文件
+                save(savePath, 'EpochDB', '-v7.3');
+                fprintf('成功。\n');
+            catch ME
+                fprintf('失败!\n!!! Error: %s\n', ME.message);
+            end
+        end
     end
+
 end

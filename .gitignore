@@ -6,6 +6,7 @@
 *.png
 *.bmp
 *.gsq
+*.zip
 
 # 忽略所有数据文件夹中的内容
 # 假设你的原始数据和处理后数据分别在 data/raw 和 data/processed
