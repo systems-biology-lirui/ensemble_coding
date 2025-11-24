@@ -135,10 +135,7 @@ function varargout = stdline_LR(data, varargin)
     if k > 1 && ~isempty(legendLabels)
         legend(h, legendLabels, 'Location', 'best');
     end
-    
-    % 设置坐标轴
-    box on;
-    grid on;
+   
     
     hold off;
     

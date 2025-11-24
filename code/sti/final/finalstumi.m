@@ -3,7 +3,7 @@
  clear;
  clc;
 
-file_path = '/home/dclab2/Ensemble coding/code/sti/final/base/nogaosi/2';
+file_path = 'D:\ensemble_coding\code\sti\base\nogaosi\2';
 %导入全部图片
 imgsize = 60;%图像大小
 center_x = 185;
@@ -97,7 +97,7 @@ centermatrix_in(:,2) = 540 - centermatrix_in(:,2);
 
 data = zeros(5,12,108);
 
-info = imfinfo('D:\Desktop\electro\code\final\mt\2\0000000030.bmp');
+info = imfinfo('D:\ensemble_coding\z5833session1_20250407\0000000030.bmp');
 colormap = info.Colormap;
 tip = 200/255;
 
@@ -204,11 +204,7 @@ targetorder = 5;
         angle = ra;
         data(1,:,num)= angle;
         data(3,:,num)= order*10;
-    
-    
-    
-    
-    
+
         for i = 1:num_out
             % 确定圆心和半径
             single = randomSelectionO_out(i);
@@ -323,8 +319,7 @@ targetorder = 5;
         imwrite(sti1, colormap, fullpath2); %colormap,
     
     end
-    
-    
+       
     save(fullfile(datapath,dataname),'data');
 
 % 显示结果

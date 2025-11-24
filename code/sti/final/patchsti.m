@@ -1,7 +1,7 @@
  clear;
  clc;
 
-file_path = '/home/dclab2/Ensemble coding/code/sti/base/nogaosi/2';
+file_path = 'D:\ensemble_coding\code\sti\base\nogaosi\2';
 %导入全部图片
 imgsize = 60;%图像大小
 center_x = 185;
@@ -23,7 +23,7 @@ end
 canvasWidth = 1920;
 canvasHeight = 1080;
 
-info = imfinfo('/home/dclab2/Ensemble coding/sti/0801/z432s1_EC_20240801/0000000030.bmp');
+info = imfinfo('D:\ensemble_coding\z5833session1_20250407\0000000030.bmp');
 colormap = info.Colormap;
 % 创建一个灰色背景
 grayBackground = 130/255 * ones(canvasHeight, canvasWidth, 3);

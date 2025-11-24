@@ -5,7 +5,7 @@ macaque = {'DG','QQ','QQ'};
 Yge_macaque = {'SCECEC0SSC_Dataset3-FigureMap.mat','NorSCECEC0SSC_Dataset3-FigureMap.mat','SmallSize_SCECEC0SSC_Dataset3-FigureMap.mat'};
 Days = [25,29; 2,27; 39,42];
 for mac = 2
-    
+
     load(sprintf('D:/ensemble_coding/middata/Yge_data/%s',Yge_macaque{mac}),'FigureOriMap');
     FigureOriMap.EC1 = FigureOriMap.EC(:,1:3:324,:,:);
 
@@ -247,51 +247,51 @@ figure('Position', [100, 100, 1200, 800]);
 
 for m = 1:N_macaque % 行数：macaque
     for l = 1:N_label % 列数：label
-        
+
         % 计算子图索引
         subplot(N_macaque, N_label, (m-1) * N_label + l);
-        
+
         hold on;
-        
+
         % 遍历 tren (6个颜色)
         for t = 1:N_tren
-            
+
             % 提取当前 tren, macaque, label 的时间序列数据
             current_acc_data = squeeze(accuracy(t, m, l, :));
-            
+
             % 获取对应的颜色
             line_color = custom_colors(t, :);
-            
+
             % 绘制线图
             plot(time_points, current_acc_data, ...
-                 'Color', line_color, ...
-                 'LineWidth', 1.5);
-             
+                'Color', line_color, ...
+                'LineWidth', 1.5);
+
             % 示例：如果需要标记显著性 (p_value < 0.05)
             % significant_times = time_points(squeeze(p_value(t, m, l, :)) < 0.05);
             % scatter(significant_times, current_acc_data(significant_times), 10, ...
             %         line_color, 'filled');
         end
-        
+
         hold off;
-        
+
         % 设置子图标题和轴标签
         title(sprintf('%s, %s', macaques{m}, labels{l}), 'FontSize', 8);
-        
+
         % 仅在最左列设置Y轴标签
         if l == 1
             ylabel('ACC Value');
         else
             set(gca, 'YTickLabel', []); % 隐藏非首列的Y轴刻度标签
         end
-        
+
         % 仅在最底行设置X轴标签
         if m == N_macaque
             xlabel('Time Points');
         else
             set(gca, 'XTickLabel', []); % 隐藏非底行的X轴刻度标签
         end
-        
+
         % 调整轴范围
         % 根据数据的整体范围调整 YLim，以便于比较
         Y_min = min(accuracy(:)) - 0.05;
@@ -323,31 +323,33 @@ macaque = {'DG','QQ old','QQ new'};
 FST = zeros(N_tren, N_macaque, N_label);
 
 % 显著性阈值
-P_THRESHOLD = 0.001; 
+P_THRESHOLD = 0.001;
 
 for t = 1:N_tren
     for m = 1:N_macaque
         for l = 1:N_label
-            
-            % 提取当前 p_value 时间序列
-            current_p_series = squeeze(p_value(t, m, l, 33:end));
-            
-            % 找到所有小于阈值的时间点的索引
-            significant_indices = find(current_p_series < P_THRESHOLD, 1, 'first');
-            
+
+            % 半高宽
+            time_value = squeeze(accuracy(t,m,l,:));
+            [~,maxindex] = max(time_value);
+            max_value = (max(time_value)-1/18)/2+1/18;
+            [min_diff, index] = min(abs(time_value(30:maxindex)-max_value));
+            significant_indices = index;
+            % 最早的显著点
+            % current_p_series = squeeze(p_value(t, m, l, 38:end));
+            % significant_indices = find(current_p_series < P_THRESHOLD, 1, 'first');
             if isempty(significant_indices)
-                % 如果没有时间点小于阈值，则设定一个最大值或 NaN
-                % 假设 N_time 是时间点总数，我们使用 N_time + 1 表示未达到显著
                 N_time = size(p_value, 4);
-                FST(t, m, l) = N_time + 1; 
+                FST(t, m, l) = N_time + 1;
             else
-                % 记录第一个显著的时间索引
                 FST(t, m, l) = significant_indices;
             end
+            
+
         end
     end
 end
-FST = (FST+13)*2;
+FST = (FST+10)*2;
 
 % ------------------------- 2. 绘图设置 -------------------------
 
@@ -361,85 +363,56 @@ mac_colors = [
     0.0, 0.4, 0.8;  % 蓝色 (DG)
     0.8, 0.4, 0.0;  % 橙色 (QQ_old)
     0.2, 0.6, 0.2   % 绿色 (QQ_new)
-];
+    ];
 
 % 定义 X 轴的刻度位置 (1, 2, 3, 4)
-x_ticks = 1:N_label; 
+x_ticks = 1:N_label;
 
 for t = 1:N_tren % 遍历 tren (子图)
-    
+
     subplot(2, 3, t); % 2行, 3列的布局
     hold on;
-    
+
     % 遍历 macaque (绘制3条线)
     for m = 1:N_macaque
-        
+
         % 提取当前 tren 和 macaque 的 4个 label 的 FST 数据
-        data_to_plot = squeeze(FST(t, m, :)); 
-        
+        data_to_plot = squeeze(FST(t, m, :));
+
         % 绘制线图和标记点
         plot(x_ticks, data_to_plot, ...
-             'Color', mac_colors(m, :), ...
-             'LineWidth', 2, ...
-             'Marker', 'o', ...
-             'MarkerSize', 6, ...
-             'DisplayName', macaque{m});
+            'Color', mac_colors(m, :), ...
+            'LineWidth', 2, ...
+            'Marker', 'o', ...
+            'MarkerSize', 6, ...
+            'DisplayName', macaque{m});
     end
-    
+
     hold off;
-    
+
     % 设置轴和标题
     title(sprintf('Tren: %s', tren_labels{t}));
-    
+
     % 设置 X 轴刻度和标签
     xticks(x_ticks);
     xticklabels(labels);
-    
+
     % 统一 Y 轴范围
     max_time = max(FST(:));
     ylim([0, max_time + 5]); % 稍微留出一点空间
-    
+
     % 添加 Y 轴标签
     if mod(t, 3) == 1 % 仅在左侧子图添加 YLabe
         ylabel('最早显著时间点 (Time Index)');
     end
-    
+
     % 添加图例 (只在第一个子图添加，避免重复)
     if t == 1
         legend('Location', 'northwest');
     end
-    
+
     grid on;
 end
-%% Pattern1 test Pattern其他
-load('D:\ensemble_coding\middata\Yge_data\SCECEC0SSC_Dataset3-FigureMap.mat')
-EC1 = FigureOriMap.EC(:,1:3:324,:,:);
-for ori = 1:18
-    idx = (1:6)+(ori-1)*6;
-    data(ori,:,:,:,:) = EC1(:,idx,:,:);
-end
-channels = sel_channel.DG;
-for ori = 1:18
-    data0 = squeeze(data(ori,:,:,:,channels));
-    data0 = permute(data0,[2,1,4,3]);
-    [acc1{ori}, p_value{ori}, perm_accuracies_mean{ori},detailed_results{ori},linear_weight{ori}] = SVM_Decoding_LR(data0, 1, 5,5);
-end
-%%
-clearvars -except data
-channels = 1:96;
-for pattern = 1:6
-    traindata = squeeze(data(:,:,pattern,:,:));
-    testData = reshape(data(:,:,setdiff(1:6,pattern),:,:),[18,4*5,126,96]);
-    [~, accuracies_test{pattern}] = generalizationDecoding(permute(traindata,[1,2,4,3]), permute(testData,[1,2,4,3]), 'temporal');
-    [~, accuracies_cv_train{pattern}] = generalizationDecoding(permute(traindata,[1,2,4,3]), permute(traindata,[1,2,4,3]), 'temporal');
-end
-acc = cat(1,accuracies_test{:});
-acc_self = cat(1,accuracies_cv_train{:});
-figure('Position',[0,0,800,300]);
-hold on
-plot(smooth(squmean(acc,1)),'LineWidth',2);
-plot(smooth(squmean(acc_self,1)),'LineWidth',2);
-
 
 %%
 clear;
@@ -464,5 +437,136 @@ end
 channels = sel_channel.DG;
 data0 = reshape(data,[18,24,126,96]);
 data0 = permute(data0(:,:,:,channels),[1,2,4,3]);
-clearvars -except data0 options 
+clearvars -except data0 options
 results = Master_Decoder(data0, [], options);
+
+%%
+minnum = 19000;
+for i = 1:108
+    a = size(SSVEP_PIC_DATA{i},1);
+    if a <minnum
+        minnum = a;
+    end
+end
+
+for x = 1:18
+    for y = 1:6
+        SSVEP_PIC_DATA{x,y} = trialmean(SSVEP_PIC_DATA{x,y}(1:minnum,:,:),floor(minnum/5));
+    end
+end
+save('DG_mgnv_A.mat','SSVEP_PIC_DATA');
+%%
+clear;
+macaques = {'DG','QQ_old','QQ_new'};
+load('sel_channel_Yge.mat','sel_channel')
+for macaque = 1:3
+    macaque_idx = macaques{macaque};
+    load(sprintf('%s_mgv_Event.mat',macaque_idx))
+
+    if macaque ~= 1
+        channels = setdiff(sel_channel.(macaque_idx),[95,96]);
+    else
+        channels = sel_channel.(macaque_idx);
+    end
+
+    sel_acc = zeros(6,100);
+    another_acc = zeros(6,5,100);
+    data = zeros(18,6,size(SSVEP_PIC_DATA{1,1},1),size(SSVEP_PIC_DATA{1,1},2),100);
+    for x = 1:18
+        for y = 1:6
+            data(x,y,:,:,:) = SSVEP_PIC_DATA{x,y};
+        end
+    end
+    clear SSVEP_PIC_DATA
+    options.do_permutation = false;      % 是否进行shuffle的chance-level计算(true/false)
+    options.n_shuffles = 5;             % shuffle次数
+    options.n_repetitions = 3;          % 解码重复次数
+    options.k_fold = 3;                 % 解码交叉验证
+    options.time_smooth_win = 0;        % 时间点的窗口平滑
+
+    for pattern = 1:6
+
+        options.mode = 'temporal';          % mode{'temporal','gat','cross_condition','cross_gat'}
+        data1 = squeeze(data(:,pattern,:,channels,:));
+        i = 1;
+        results1 = Master_Decoder(data1, [], options);
+        sel_acc(pattern,:) = results1.acc_real_mean;
+
+        for another_pattern = setdiff(1:6,pattern)
+            data2 = squeeze(data(:,another_pattern,:,channels,:));
+
+
+
+            % [cluster,repeat,channel,timepoint] = size(data);
+
+            options.mode = 'cross_condition';          % mode{'temporal','gat','cross_condition','cross_gat'}
+            results2 = Master_Decoder(data1, data2, options);
+            another_acc(pattern,i,:) = results2.acc_real_mean;
+            i = i+1;
+        end
+    end
+    sel_another{macaque,1} = sel_acc;
+    sel_another{macaque,2} = another_acc;
+end
+save('sel_another_Event.mat','sel_another');
+%%
+figure;
+for macaque = 1:3
+    subplot(1,3,macaque)
+    hold on
+    another = reshape(sel_another{macaque,2},[30,100]);
+    self = sel_another{macaque,1};
+    another = another - squmean(another(:,1:20),[1,2]) + squmean(self(:,1:20),[1,2]);
+    stdline_LR(another,'color',[0.2,0.2,0.7])
+    stdline_LR(self,'color',[0.7,0.2,0.2]);
+    % for t = 1:100
+    %     [~,p(t),~,~] = ttest2(another(:,t),self(:,t));
+    % end
+    for t = 1:100
+        [p(t),~,~] = ranksum(another(:,t),self(:,t));
+    end
+    yline(1/2,'--')
+    m = setdiff(find(p<=0.05),1:40);
+    y_marker_pos = 1/2-0.01;
+    hold on
+    stem(m, repmat(y_marker_pos, size(m)), '.', 'MarkerFaceColor', 'k', ...
+        'MarkerSize', 5, 'LineWidth', 1, 'Clipping', 'off','LineStyle','none','MarkerEdgeColor',[0.4,0.4,0.2]);
+    % if macaque == 1
+    %     legend({'self_decode','another_decode'})
+    % end
+    ylim([0.4,1])
+
+    subtitle(sprintf('%s',macaques{macaque}));
+
+    ax = gca;
+    ax.LineWidth = 2;
+    ax.FontSize = 12;
+    ax.FontWeight = 'bold';
+    ax.XAxis.FontSize = 12;
+    ax.YAxis.FontSize = 12;
+    ax.XAxis.FontWeight = 'bold';
+
+    xticks(0:10:100);
+    xticklabels({'-40','-20','0','20','40','60','80','100','120','140','160'});
+
+end
+% saveas(gcf,'sel_another.png','png')
+
+%%
+minnum = 1000;
+for ori = 1:18
+    for pattern = 1:6
+        a = MGv(ori).Pattern;
+        counts = min(histcounts(a));
+        if counts < minnum
+            minnum = counts;
+        end
+    end
+end
+for ori = 1:18
+    for pattern = 1:6
+        idx = find(MGv(ori).Pattern == pattern);
+        SSVEP_PIC_DATA{ori,pattern} = MGv(ori).Data(idx(1:minnum),:,:);
+    end
+end
+save('DG_mgv_Event.mat','SSVEP_PIC_DATA');

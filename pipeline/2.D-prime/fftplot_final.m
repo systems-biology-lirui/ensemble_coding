@@ -1,14 +1,14 @@
 %% --- 1. 配置与数据加载 ---
 
-clear; 
-close all; 
-clc;
+% clear; 
+% close all; 
+% clc;
 
 % 加载数据
-load('QQ_exp1b_LFP_MGv_fftplot.mat');
-Labels = {'MGv','MGnv','SG'};
-load('D:\ensemble_coding\QQdata\tooldata\QQchannelselect.mat')
-selchannel =  [75,79,43,78,81,41,45,82,84,38,47,49,85,42,44,51,88,17,50,46,89,8,54,52,58,91,92,23,25,21,62,60,14,16,20,27,29,31,63,56,22,24,26,28];
+% load('QQ_exp1b_LFP_MGv_fftplot_snr.mat');
+Labels = {'MGv','fitMGv'};
+load('sel_channel_Yge.mat','sel_channel')
+selchannel =  sel_channel.QQ_new;
 
 % 定义常量和参数
 Fs = 500;
@@ -18,7 +18,7 @@ plot_range = 1:100; % 定义绘图的频率范围索引
 
 % 定义绘图样式
 special_points = [6.25, 25];
-color_target = [0.7, 0, 0];       % 'Target' 数据的颜色 (深红)
+color_target = [0, 0, 0.7];       % 'Target' 数据的颜色 (深红)
 color_random = [0.7, 0.7, 0.7];   % 'Random' 数据的颜色 (灰色)
 line_width_target = 3;
 line_width_random = 2.3;
@@ -34,8 +34,8 @@ for i = 1:length(Labels)
     % --- 子图1: 幅度谱 (Amplitude) ---
     ax1 = subplot(4, 1, 1);
     hold(ax1, 'on');
-    plot(ax1, f(plot_range), plot_content.(Labels{i}).random_am, 'LineWidth', line_width_random, 'Color', color_random);
-    plot(ax1, f(plot_range), plot_content.(Labels{i}).target_am, 'LineWidth', line_width_target, 'Color', color_target);
+    plot(ax1, f(plot_range), squmean(plot_content.(Labels{i}).random_am,1), 'LineWidth', line_width_random, 'Color', color_random);
+    plot(ax1, f(plot_range), squmean(plot_content.(Labels{i}).target_am,1), 'LineWidth', line_width_target, 'Color', color_target);
     xline(ax1, special_points, '--');
     hold(ax1, 'off');
     
@@ -85,11 +85,11 @@ for i = 1:length(Labels)
 end
 %%
 figure('Position', [100, 100, 300, 350]);
-data_before = plot_content.MGnv.dprimeresult{1}(1,selchannel)-plot_content.normfitMGnv.dprimeresult{1}(1,selchannel);
-data_after = plot_content.MGnv.dprimeresult{1}(3,selchannel)-plot_content.normfitMGnv.dprimeresult{1}(3,selchannel);
+data_before = plot_content.MGv.dprimeresult{1}(3,selchannel);
+data_after = plot_content.fitMGv.dprimeresult{1}(3,selchannel);
 ax1=subplot(1,1,1);
 plot_dprime_comparison(ax1, data_before, data_after, color_target, color_random);
-title('MGnv-normfitMGnv')
+title('MGv-fitMGv')
 %% --- 3. 辅助函数 (Helper Functions) ---
 
 function set_custom_xticks(ax, special_points, special_color)
@@ -210,7 +210,7 @@ function plot_dprime_comparison(ax, data1, data2, color1, color2)
 
     % --- 坐标轴美化 ---
     xticks(ax, [1, 2]);
-    xticklabels(ax, {'6.25hz (Ensemble)', '25hz (Individual)'});
+    xticklabels(ax, {'MGv', 'fitMGv'});
     % xticklabels(ax, {'MGv (6.25hz)', 'fitMGv (6.25hz)'});
     ylabel(ax, 'D-prime (channels)');
     xlim(ax, [0.5, 2.5]);

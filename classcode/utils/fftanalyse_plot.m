@@ -25,6 +25,7 @@ for n = 1:length(file_idx)
 %                 errordata = reshape(currentdata,[9,5,94,1640]);
 %                 currentdata = squmean(errordata,2);
                 [P1_3d,Phase_3d,f] = SSVEP_fftanalyse(currentdata);
+                % P1_3d = fft_snr(P1_3d(:,:,1:100), f(1:100), 2, 0.25);
                 fftresult.(Labels{n}){1,cond} = P1_3d;
                 fftresult.(Labels{n}){2,cond} = Phase_3d;
             end
@@ -53,7 +54,7 @@ for n = 1:length(file_idx)
 %         figure;
 %         subplot(1,2,1);
         % random
-        random_am = mean(squmean(fftresult.(Labels{n}){1,1}(:,selected_coil_final,1:100),1),1);
+        random_am = squmean(fftresult.(Labels{n}){1,1}(:,selected_coil_final,1:100),1);
 %         plot(f(1:100),10*log10(random_am),'LineWidth',1.3,'Color',[0.7,0.7,0.7]);
 %         hold on
         % target90
@@ -61,7 +62,7 @@ for n = 1:length(file_idx)
         for cond = condsel
         target_am = cat(1,target_am,fftresult.(Labels{n}){1,cond}(:,selected_coil_final,1:100));
         end
-        target_am = squmean(target_am,[1,2]);
+        target_am = squmean(target_am,1);
 %         plot(f(1:100),10*log10(target_am),'LineWidth', 2 ,'Color',Colors(n,:));
 %         hold off
 %         xline(6.25,'--');
@@ -152,33 +153,3 @@ end
 
 save(sprintf('%s.mat',plot_content_savepath),"plot_content");
 
-% % 绘制不同条件dprime柱状图
-% figure;
-% dprimeplot = [];
-% for n = 1:n_conditions
-%     dprimeplot = cat(3,dprimeplot,dprimeresult.(Labels{n}));
-% end
-% dprimeplot = dprimeplot(:,selected_coil_final,:);
-% % 计算每个子组的均值
-% mean_data = squeeze(mean(dprimeplot, 2)); 
-% hold on;
-% 
-% % 设置柱状图的位置
-% x = 1:n_conditions; 
-% offset = 0.2; 
-% 
-% % 6.25hz
-% bar(x - offset, mean_data(1, :), 0.4, 'FaceColor', [0.2, 0.6, 1]); 
-% scatter(repmat(x - offset, 94, 1), squeeze(dprimeplot(1, :, :)), 10, 'k', 'filled'); 
-% 
-% % 25hz
-% bar(x + offset, mean_data(2, :), 0.4, 'FaceColor', [1, 0.6, 0.2]); 
-% scatter(repmat(x + offset, 94, 1), squeeze(dprimeplot(2, :, :)), 10, 'k', 'filled'); 
-% 
-% % 设置图形属性
-% set(gca, 'XTick', x); 
-% set(gca, 'XTickLabel', Labels); 
-% title('D-prime');
-% legend('6.25hz', '25hz');
-% hold off;
-% box off

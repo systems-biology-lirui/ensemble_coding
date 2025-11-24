@@ -36,7 +36,7 @@
 
 clear;clc;
 
-options.mode = 'temporal';          % mode{'temporal','gat','cross_condition','cross_gat'}
+options.mode = 'cross_condition';          % mode{'temporal','gat','cross_condition','cross_gat'}
 options.do_permutation = true;      % 是否进行shuffle的chance-level计算(true/false)
 options.n_shuffles = 5;             % shuffle次数
 options.n_repetitions = 5;          % 解码重复次数

@@ -1,16 +1,16 @@
 dbstop if error
-label = {'MGv'};
-macaque = 'QQ';
-file_path = sprintf('D:/Ensemble coding/%sdata/Processed_Event/',macaque);
+label = {'MGnv'};
+macaque = 'DG';
+file_path = sprintf('D:/ensemble_coding/%sdata/Processed_Event/',macaque);
 MUA_LFP = 'MUA2';
 for i = 1:length(label)
-    filename = sprintf('%s_SSVEP_Days32_32_%s_%s.mat',macaque,MUA_LFP,label{i});
+    filename = sprintf('%s_SSVEPA_Days4_15_%s_%s.mat',macaque,MUA_LFP,label{i});
     file_idx{i} = fullfile(file_path,filename);
 end
 
 
 % SSVEP_Pic(file_idx,MUA_LFP,label);
-SSVEP_Pic_Preallocated(file_idx, MUA_LFP, label)
+SSVEP_Pic_Preallocated(file_idx, MUA_LFP,label, 'DG')
 %% SSVEP_pic
 % 需要得到pre_ori,ori,phase
 pre_ori = 9;

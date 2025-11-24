@@ -264,18 +264,16 @@ condsel = [2,6];
 macaque = 'QQ';
 MUA_LFP = 'LFP';
 savepath = sprintf('D:/ensemble_coding/%sdata/Processed_Event',macaque);
-Labels = {'MGv','MGnv','SG'};
+Labels = {'MGv','MGnv','SG','fitMGv','fitMGnv','centerSSGnv'};
 % Labels = {'fitMGv','fitMGnv','centerSSGnv'};
 % Colors = [62,181,95;233,173,107;120,158,175;142,50,40]/255;
 Colors = [175,0,0;175,0,0;175,0,0;175,0,0;175,0,0;175,0,0;175,0,0;175,0,0;175,0,0;175,0,0;175,0,0;175,0,0]/255;
 for i = 1 :length(Labels)
 file_idx{i} = fullfile(savepath, sprintf('%s_SSVEPB_Days%d_%d_%s_%s.mat',macaque, Days(1), Days(end), MUA_LFP,Labels{i}));
 end
-% selected_coil_final = [74,67,69,68,72,81,1,33,35,39,45,82,34,36,38,40,86,7,51,53,87,6,9,17,15,55,8,58,57,91,92,25,21,60,94,14,20,27,29,64,61,56,28,30,59];
-selected_coil_final = [75,79,43,78,81,41,45,82,84,38,47,49,85,42,44,51,88,17,50,46,89,8,54,52,58,91,92,23,25,21,62,60,14,16,20,27,29,31,63,56,22,24,26,28];
-load(sprintf('D:/ensemble_coding/%sdata/tooldata/%schannelselect.mat',macaque,macaque),'selected_coil_final')
-% selected_coil_final=[20,22,24];
-% selected_coil_final = [7,9,13,17,18,19,21,22,23,24,25,27,35,38,39,41,51,61,73,74,80,82,84,87,89]+1;
+load('sel_channel_Yge.mat','sel_channel')
+selected_coil_final = sel_channel.QQ_new;
+
 plot_content_savepath = sprintf('%s_exp1b_%s_%s_fftplot',macaque,MUA_LFP,Labels{1});
 fftanalyse_plot(condsel,file_idx,Labels,Colors,selected_coil_final,plot_content_savepath)
 
