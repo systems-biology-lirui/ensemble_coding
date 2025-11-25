@@ -570,3 +570,55 @@ for ori = 1:18
     end
 end
 save('DG_mgv_Event.mat','SSVEP_PIC_DATA');
+
+
+%% 计算res训练测试真实
+clear;
+macaques = {'DG','QQ_old','QQ_new'};
+load('sel_channel_Yge.mat','sel_channel')
+for macaque = 1:3
+    macaque_idx = macaques{macaque};
+    load(sprintf('%s_mgv_Event.mat',macaque_idx))
+
+    if macaque ~= 1
+        channels = setdiff(sel_channel.(macaque_idx),[95,96]);
+    else
+        channels = sel_channel.(macaque_idx);
+    end
+
+    sel_acc = zeros(6,100);
+    another_acc = zeros(6,5,100);
+    data_mgv = zeros(18,6,size(SSVEP_PIC_DATA{1,1},1),size(SSVEP_PIC_DATA{1,1},2),100);
+    
+    for x = 1:18
+        for y = 1:6
+            data_mgv(x,y,:,:,:) = SSVEP_PIC_DATA{x,y};
+        end
+    end
+    load(sprintf('%s_resmgnv_Event.mat',macaque_idx))
+    data_resmgnv = zeros(18,6,size(SSVEP_PIC_DATA{1,1},1),size(SSVEP_PIC_DATA{1,1},2),100);
+    for x = 1:18
+        for y = 1:6
+            data_resmgnv(x,y,:,:,:) = SSVEP_PIC_DATA{x,y};
+        end
+    end
+
+    clear SSVEP_PIC_DATA
+    options.do_permutation = false;      % 是否进行shuffle的chance-level计算(true/false)
+    options.n_shuffles = 5;             % shuffle次数
+    options.n_repetitions = 3;          % 解码重复次数
+    options.k_fold = 3;                 % 解码交叉验证
+    options.time_smooth_win = 0;        % 时间点的窗口平滑
+    data2 = reshape(data_mgv([1,9],:,:,channels,:),[2,6*size(data_mgv,3),length(channels),100]);
+    data1 = reshape(data_resmgnv([1,9],:,:,channels,:),[2,6*size(data_resmgnv,3),length(channels),100]);
+    options.mode = 'cross_gat'; 
+    results1 = Master_Decoder(data1, data2, options);
+    for ori = [1,9]
+
+        options.mode = 'cross_gat';          % mode{'temporal','gat','cross_condition','cross_gat'}
+        data2 = squeeze(data_mgv(ori,:,:,channels,:));
+        data1 = squeeze(data_resmgnv(ori,:,:,channels,:));
+        results2{ori} = Master_Decoder(data1, data2, options);
+    end
+end
+save('sel_another_Event2.mat','sel_another');

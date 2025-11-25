@@ -14,7 +14,7 @@ function config = Main_Config()
     % === Block 列表 ===
     config.TargetBlocks = {'MGv','SSGv'};
     
-    config.DataType = 'MUA2';
+    config.DataType = 'LFP';
     if strcmp(config.TargetParadigms,'EVENT')
         config.TrialLength = 1240; % EVENT1240
     else
