@@ -14,17 +14,14 @@ builder.run();
 clear;
 config = Main_Config();
 dbPath = 'D:/ensemble_coding/Project_Ensemblecoding_2024/Data/01_Database';
-analyzer = NeuroDB.NeuroAnalyzer('DG', 'MGv', 'SSVEP_A', 'MUA2', dbPath);
+analyzer = NeuroDB.NeuroAnalyzer('QQ', 'SSGv', 'SSVEP_B', 'MUA2', dbPath);
 
 % 由于SSGnv实在是太多了，只选取和SSGv同样的数量进行（DG：61session）
 % analyzer.subset_sessions(61);
 % analyzer.subset_data('Condition', [-1, 1, 9]);
 
 
-
-
-
-%% ---------------------预处理-------------------------------%
+% ---------------------预处理-------------------------------%
 % ---------------------------------------------------------%
 % 1.减去baseline（从trial提取epoch应该用trial前作为baseline）
 baseline = mean(analyzer.RawTensor(:,:,1:100),3);
@@ -38,8 +35,9 @@ if ~strcmp(analyzer.BlockName,'SSGv') & ~strcmp(analyzer.BlockName,'SSGnv')
     end
 end
 
+analyzer.filter_raw_data()
 
-% ---------------------频谱分析-----------------------------%
+%% ---------------------频谱分析-----------------------------%
 % ---------------------------------------------------------%
 % 1.fft
 % 2.d-prime
@@ -71,15 +69,17 @@ head(avgMeta)
 
 % -------------------进行切片（PIC）-----------------------%
 % ---------------------------------------------------------%
+%% --------------------Decoding-----------------------------%
+% ----------------------SSVEP_A-----------------------------%
+%------------orientation-------------%
 
-histogram(avgMeta.PicID)
-oris = [1,9];
-data = [];
-for ori = 1:2
-    for pattern = 1:6
-        for location = 1:12
-            idx =find(avgMeta.PicID==oris(ori)&avgMeta.Pattern==pattern&avgMeta.Location==location);
-            data(ori,pattern,:,:,:,location) = avgEpochs(idx,:,:);
-        end
-    end
-end
+
+
+
+% ----------------------SSVEP_B-----------------------------%
+%----------------拟合-----------------%
+
+
+
+
+%-------------decoding----------------%

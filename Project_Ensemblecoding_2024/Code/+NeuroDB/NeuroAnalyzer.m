@@ -767,6 +767,31 @@ classdef NeuroAnalyzer < handle
                 stats.h_val(c) = h;
             end
         end
+    
+    
+        % ------------------------滤波----------------------------%
+        function filter_raw_data(obj)
+            % -----------------------------滤波50hz,100hz----------------------------%
+            obj.RawTensor = single(obj.RawTensor);
+            [ntrial,nch,~] = size(obj.RawTensor);
+            frequency = [50,100];
+            for m = 1:2
+                [b,a] = notch_filter(500, frequency(m), 10);
+                for i = 1:ntrial
+                    if mod(i,1000) ==0
+                        disp(i)
+                    end
+                    for channel = 1:nch
+                        obj.RawTensor(i,channel,:)  = filtfilt(b,a,squeeze(obj.RawTensor(i,channel,:)));
+                    end
+                end
+                for i = 1:ntrial
+                    for channel = 1:nch
+                        obj.RawTensor(i,channel,:)  = filtfilt(b,a,squeeze(obj.RawTensor(i,channel,:)));
+                    end
+                end
+            end
+        end
     end
 end
 

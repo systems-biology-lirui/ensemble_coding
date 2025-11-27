@@ -1,13 +1,13 @@
 % ------------------------绘图----------------------------%
-
-load('sel_channel_Yge.mat','sel_channel')
-channels = sel_channel.DG;
-
 figure('Color', 'w', 'Position', [100, 100, 1200, 500]);
 tlo = tiledlayout(1, 3, 'TileSpacing', 'compact'); 
 
 % -----------子图1：SSGnv------------------%
 ax1 = nexttile(tlo);
+load('sel_channel_Yge.mat','sel_channel')
+channels = sel_channel.DG;
+
+
 x = fVec(1:100);
 idx1 = find(DG_SSGnv_fft.meta.Condition~=-1);
 idx2 = find(DG_SSGnv_fft.meta.Condition==-1);

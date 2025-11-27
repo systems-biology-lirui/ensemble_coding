@@ -55,15 +55,17 @@ parfor t_idx = 1:config.n_time
     % --- 2.2 计算真实解码准确率 (复用!) ---
     % 直接调用为GAT模式创建的函数，因为逻辑完全相同
     real_accuracies_reps = perform_gat_cv_step(X_train_t, labels_train, X_test_t, labels_test, config);
-    
+
     acc_real_mean(t_idx) = mean(real_accuracies_reps);
     tmp_real_acc_dist{t_idx} = real_accuracies_reps;
 
     % --- 2.3 条件执行排列检验 (复用!) ---
     if config.do_permutation
         % 直接调用为GAT模式创建的函数
-        perm_accuracies_at_t = run_permutation_test_gat(X_train_t, labels_train, X_test_t, config);
-        
+        % 直接调用为GAT模式创建的函数
+        % 注意：这里新增了第四个参数 labels_test
+        perm_accuracies_at_t = run_permutation_test_gat(X_train_t, labels_train, X_test_t, labels_test, config);
+
         perm_accuracies_mean(t_idx) = mean(perm_accuracies_at_t);
         tmp_perm_acc_dist{t_idx} = perm_accuracies_at_t;
 

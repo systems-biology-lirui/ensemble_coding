@@ -101,7 +101,7 @@ classdef Builder < handle
 
             fprintf('  [Pass 1] 扫描 %d 个 Session 文件...\n', height(BlockRows));
             [totalTrials, nCh, maxTime] = obj.prescan_dimensions(BlockRows, targetBlock);
-
+            nCh = 100;
             fprintf('  预分配: %d Trials, %d Ch, %d TimePoints\n', totalTrials, nCh, maxTime);
 
             LFP_Tensor = zeros(totalTrials, nCh, maxTime, 'int16');

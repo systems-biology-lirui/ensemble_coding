@@ -1,7 +1,7 @@
 function config = Main_Config()
     % === 实验参数 ===
-    config.Subject = 'DG';
-    config.DateRange = [];
+    config.Subject = 'QQ';
+    config.DateRange = [87,116];
     
     % === 路径配置 ===
     rootPath = fileparts(fileparts(mfilename('fullpath')));
@@ -9,12 +9,12 @@ function config = Main_Config()
     config.Path.DB   = fullfile(rootPath, 'Data', '01_Database');
     config.Path.MetaDir = 'D:/ensemble_coding/Project_Ensemblecoding_2024/Data/00_Raw';
     
-    config.TargetParadigms = {'SSVEP_B'}; % 例如：只看 SSVEP，不看 EVENT
+    config.TargetParadigms = {'SSVEP_A'}; % 例如：只看 SSVEP，不看 EVENT
     
     % === Block 列表 ===
-    config.TargetBlocks = {'MGv','SSGv'};
+    config.TargetBlocks = {'MGv'};
     
-    config.DataType = 'LFP';
+    config.DataType = 'MUA2';
     if strcmp(config.TargetParadigms,'EVENT')
         config.TrialLength = 1240; % EVENT1240
     else
