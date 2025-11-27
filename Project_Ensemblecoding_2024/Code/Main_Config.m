@@ -1,7 +1,7 @@
 function config = Main_Config()
     % === 实验参数 ===
     config.Subject = 'QQ';
-    config.DateRange = [87,116];
+    config.DateRange = [162,172];
     
     % === 路径配置 ===
     rootPath = fileparts(fileparts(mfilename('fullpath')));

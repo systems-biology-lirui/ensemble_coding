@@ -1,12 +1,12 @@
 % step1_process_ssgv.m
 clear; clc;
-
+macaque = 'QQ_new';
 base_path = 'D:\ensemble_coding\Project_Ensemblecoding_2024\Data\02_EpochDatabase\';
-save_path = 'D:\ensemble_coding\Project_Ensemblecoding_2024\Data\03_ResultData\Temp\';
+save_path = 'D:\ensemble_coding\Project_Ensemblecoding_2024\Data\03_ResultData\Temp1\';
 if ~exist(save_path, 'dir'), mkdir(save_path); end
 
 fprintf('正在加载 SSGv 数据...\n');
-data_ssgv = load(fullfile(base_path, 'QQ_SSGv_SSVEP_B_MUA2_Epochs_Avg.mat'));
+data_ssgv = load(fullfile(base_path, sprintf('%s_SSGv_SSVEP_B_MUA2_Epochs_Avg.mat',macaque)));
 meta_ssgv = data_ssgv.EpochDB.Meta;
 raw_ssgv  = data_ssgv.EpochDB.Data; 
 clear data_ssgv;
@@ -70,15 +70,15 @@ save(fullfile(save_path, 'Preprocessed_SSGv_int16.mat'), ...
     'Mat_SSGv_int16', 'scale_factor_ssgv', 'meta_ssgv', 'min_trials_ssgv', '-v7.3');
 fprintf('Step 1 完成: SSGv 已保存。\n');
 
-%% step2_process_mgv.m
-clear; clc;
+% step2_process_mgv.m
+clearvars -except macaque; clc;
 
 base_path = 'D:\ensemble_coding\Project_Ensemblecoding_2024\Data\02_EpochDatabase\';
-save_path = 'D:\ensemble_coding\Project_Ensemblecoding_2024\Data\03_ResultData\Temp\';
+save_path = 'D:\ensemble_coding\Project_Ensemblecoding_2024\Data\03_ResultData\Temp1\';
 
 fprintf('正在加载 MGv 数据...\n');
-data_b = load(fullfile(base_path, 'QQ_MGv_SSVEP_B_MUA2_Epochs_Avg.mat'));
-data_a = load(fullfile(base_path, 'QQ_MGv_SSVEP_A_MUA2_Epochs_Avg.mat'));
+data_b = load(fullfile(base_path, sprintf('%s_MGv_SSVEP_B_MUA2_Epochs_Avg.mat',macaque)));
+data_a = load(fullfile(base_path, sprintf('%s_MGv_SSVEP_A_MUA2_Epochs_Avg.mat',macaque)));
 
 meta_mgv_b = data_b.EpochDB.Meta;
 raw_mgv_b  = data_b.EpochDB.Data;
@@ -157,8 +157,8 @@ save(fullfile(save_path, 'Preprocessed_MGv_int16.mat'), ...
 fprintf('Step 2 完成: MGv 已保存。\n');
 
 % step3_fitting_decoding.m
-clear; clc;
-temp_path = 'D:\ensemble_coding\Project_Ensemblecoding_2024\Data\03_ResultData\Temp\';
+clearvars -except macaque; clc;
+temp_path = 'D:\ensemble_coding\Project_Ensemblecoding_2024\Data\03_ResultData\Temp1\';
 result_path = 'D:\ensemble_coding\Project_Ensemblecoding_2024\Data\03_ResultData\';
 
 fprintf('加载预处理后的 int16 数据...\n');
@@ -193,7 +193,7 @@ clear D_SSGv D_MGv; % 释放加载的结构体
 % 分配结果矩阵 (single 精度)
 Fit_Mat = zeros(n_ori, n_pat, n_trial, nChs, nTime, 'single');
 method = 'linear_unconstrained';
-time_segment = [20, 40];
+time_segment = [40, 60];
 
 fprintf('开始逐 Trial 拟合...\n');
 tic;
@@ -317,14 +317,16 @@ end
 
 % 保存结果
 fprintf('保存最终结果...\n');
-save(fullfile(result_path, 'DG_fitmgv.mat'), ...
+save(fullfile(result_path, sprintf('%s_fitmgv.mat',macaque)), ...
     'Mat_MGv_A', 'Mat_MGv_A1', 'Mat_MGv_B', 'Fit_Mat', 'Res_Mat', '-v7.3');
 
 %% 6. 解码部分 (直接接你的代码)
 
-clearvars -except Mat_MGv_A Mat_MGv_A1 Mat_MGv_B Fit_Mat Res_Mat
+clearvars -except Mat_MGv_A Mat_MGv_A1 Mat_MGv_B Fit_Mat Res_Mat macaque R
 load('sel_channel_Yge.mat','sel_channel')
-channels = sel_channel.QQ_old;
+channels = sel_channel.(sprintf('%s',macaque));
+channels1 = [1,8,34,67,68,35,36,44,76,45,53,57,32,79,91,95,85,88,59];
+channels = setdiff(channels,channels1);
 options.do_permutation = false;
 options.n_shuffles = 5;
 options.n_repetitions = 1;

@@ -99,25 +99,24 @@ classdef NeuroAnalyzer < handle
         function [epochData, epochMeta] = slice_epochs(obj, varargin)
             % 解析参数
             p = inputParser;
-            addParameter(p, 'AverageRepeats', false, @islogical); % 新增开关
+            addParameter(p, 'CollapseToCount', 0, @isnumeric); % 压缩成几个阶段 (Repeat)
+            addParameter(p, 'AverageRepeats', false, @islogical);
             addParameter(p, 'Verbose', true, @islogical);
-            % [新增] 保存选项
             addParameter(p, 'Save', false, @islogical);
-            addParameter(p, 'SaveDir', '', @ischar); % 默认为空，自动推导
-
+            addParameter(p, 'SaveDir', '', @ischar);
             parse(p, varargin{:});
 
-            doAvg   = p.Results.AverageRepeats;
-            doSave  = p.Results.Save;
-            saveDir = p.Results.SaveDir;
-            verbose = p.Results.Verbose;
-            if verbose, fprintf('>>> 开始切片流程 (平均模式: %d) <<<\n', doAvg); end
+            nCollapse = p.Results.CollapseToCount;
+            doAvg     = p.Results.AverageRepeats;
+            verbose   = p.Results.Verbose;
 
-            % === 1. 基础参数准备 ===
+            % 性能计时
+            tStart = tic;
+
+            % === 1. 基础参数与时间轴 ===
             fs = obj.Config.Fs;
             soa_pts    = round(obj.Config.StimSOA / 1000 * fs);
             offset_pts = round(obj.Config.StimOffset / 1000 * fs);
-
             t_pre = obj.Config.EpochWin(1);
             t_post = obj.Config.EpochWin(2);
             nPre = round(abs(t_pre) / 1000 * fs);
@@ -127,186 +126,274 @@ classdef NeuroAnalyzer < handle
 
             [nLongTrials, nCh, maxLongTime] = size(obj.RawTensor);
 
-            % === 2. Pass 1: 仅构建元数据索引 (极快，不占内存) ===
-            if verbose, fprintf('  [Phase 1] 扫描元数据...\n'); end
+            if verbose, fprintf('>>> 开始极速切片 (Target Repeats: %d) <<<\n', nCollapse); end
 
+            % === 2. Pass 1: 快速扫描构建索引 (不读数据) ===
+            % 这一步必须做，用来计算权重和目标位置
             lens = cellfun(@length, obj.StimSeq);
             nEst = sum(lens);
 
-            % [修改点 1] 增加 DateCode 存储数组
-            % DateCode 通常是 string 或 double。为了 findgroups 效率，建议转为 double (如果可能)
-            % 或者使用 categorical/string 数组。这里假设是 string。
-            temp_DateCode = strings(nEst, 1);
-            temp_Session  = zeros(nEst, 1, 'double');
-            temp_Loc      = zeros(nEst, 1, 'int16');
-            temp_PicID    = zeros(nEst, 1, 'int16');
-            temp_Pattern  = zeros(nEst, 1, 'int16');
-            temp_SourceTrial = zeros(nEst, 1, 'int32');
-            temp_OnsetIdx    = zeros(nEst, 1, 'int32');
+            % 使用原生数组代替 struct 数组以提升速度
+            vec_DateCode = strings(nEst, 1);
+            vec_Session  = zeros(nEst, 1, 'double');
+            vec_Loc      = zeros(nEst, 1, 'int16');
+            vec_PicID    = zeros(nEst, 1, 'int16');
+            vec_Pat      = zeros(nEst, 1, 'int16');
+            vec_SrcTrial = zeros(nEst, 1, 'int32');
+            vec_Onset    = zeros(nEst, 1, 'int32');
 
             global_cnt = 0;
-
+            % 尽量减少循环内的开销
             for i = 1:nLongTrials
                 seq = obj.StimSeq{i};
                 if isempty(seq), continue; end
 
-                % [修改点 2] 获取 DateCode
-                cur_date = obj.MetaTable.DateCode(i);
-                % 确保统一为 string，防止有些是 cell 有些是 char
-                if iscell(cur_date), cur_date = string(cur_date{1}); else, cur_date = string(cur_date); end
-
+                % 提取当前 Long Trial 的元数据
+                cur_date = string(obj.MetaTable.DateCode(i));
+                if iscell(cur_date), cur_date = cur_date{1}; end
                 cur_sess = obj.MetaTable.SessionID(i);
                 cur_loc  = obj.MetaTable.Location(i);
                 if iscell(cur_loc), cur_loc = -1; end
 
                 if i <= length(obj.Pattern), pat = obj.Pattern{i}; else, pat = []; end
                 if iscell(pat), try pat=[pat{:}]; catch, pat=zeros(size(seq)); end; end
-                if ~isnumeric(pat), pat=zeros(size(seq)); end
 
                 min_len = min(length(seq), length(pat));
-                seq = seq(1:min_len);
-                pat = pat(1:min_len);
 
-                for k = 1:length(seq)
-                    onset_idx = offset_pts + (k-1)*soa_pts;
-                    idx_start = onset_idx - nPre;
-                    idx_end   = idx_start + win_len - 1;
+                % 向量化计算 Onsets
+                k_vec = 1:min_len;
+                onsets = offset_pts + (k_vec-1)*soa_pts - nPre;
 
-                    if idx_start < 1 || idx_end > maxLongTime, continue; end
+                % 筛选有效范围
+                valid_mask = (onsets >= 1) & (onsets + win_len - 1 <= maxLongTime);
+                if ~any(valid_mask), continue; end
 
-                    global_cnt = global_cnt + 1;
+                valid_onsets = onsets(valid_mask);
+                nValid = length(valid_onsets);
 
-                    % 填充
-                    temp_DateCode(global_cnt) = cur_date; % 记录日期
-                    temp_Session(global_cnt)  = cur_sess;
-                    temp_Loc(global_cnt)      = cur_loc;
-                    temp_PicID(global_cnt)    = seq(k);
-                    temp_Pattern(global_cnt)  = pat(k);
+                % 填充索引
+                idx_range = global_cnt + (1:nValid);
+                vec_DateCode(idx_range) = cur_date;
+                vec_Session(idx_range)  = cur_sess;
+                vec_Loc(idx_range)      = cur_loc;
+                vec_PicID(idx_range)    = seq(valid_mask);
+                vec_Pat(idx_range)      = pat(valid_mask);
+                vec_SrcTrial(idx_range) = i;
+                vec_Onset(idx_range)    = valid_onsets;
 
-                    temp_SourceTrial(global_cnt) = i;
-                    temp_OnsetIdx(global_cnt)    = idx_start;
-                end
+                global_cnt = global_cnt + nValid;
             end
 
             % 截断
             valid_idx = 1:global_cnt;
-            temp_DateCode = temp_DateCode(valid_idx); % 截断日期
-            temp_Session  = temp_Session(valid_idx);
-            temp_Loc      = temp_Loc(valid_idx);
-            temp_PicID    = temp_PicID(valid_idx);
-            temp_Pattern  = temp_Pattern(valid_idx);
-            temp_SourceTrial = temp_SourceTrial(valid_idx);
-            temp_OnsetIdx    = temp_OnsetIdx(valid_idx);
+            vec_DateCode = vec_DateCode(valid_idx); vec_Session = vec_Session(valid_idx);
+            vec_Loc = vec_Loc(valid_idx); vec_PicID = vec_PicID(valid_idx);
+            vec_Pat = vec_Pat(valid_idx); vec_SrcTrial = vec_SrcTrial(valid_idx);
+            vec_Onset = vec_Onset(valid_idx);
 
-            fprintf('  [Phase 1] 扫描完成: %d 个 Epochs。\n', global_cnt);
+            if verbose, fprintf('  [Info] 扫描完成: %d Epochs (耗时 %.2fs)\n', global_cnt, toc(tStart)); end
 
-            % === 3. 确定分组策略 ===
-            if doAvg
-                if verbose, fprintf('  [Strategy] 平均模式 (Group by Date-Session-Loc-Pic-Pat)...\n'); end
+            % === 3. 核心计算：权重分配与目标映射 (Map Building) ===
+            % 我们需要确定每个 Epoch 的：
+            %   1. DestRow: 它属于哪个最终结果行
+            %   2. Weight: 它在累加时的权重 (1/该Session的总Trial数)
+            %   3. NormFactor: 最终除以多少 (该Stage包含的Session数)
 
-                % [修改点 3] 将 DateCode 加入 findgroups
-                % 只有 DateCode, Session, Location, PicID, Pattern 全部相同的才会被归为一组
-                [G, tbl_Date, tbl_Sess, tbl_Loc, tbl_Pic, tbl_Pat] = ...
-                    findgroups(temp_DateCode, temp_Session, temp_Loc, temp_PicID, temp_Pattern);
+            % 按条件 (Loc, Pic, Pat) 分组
+            [CondG, u_Loc, u_Pic, u_Pat] = findgroups(vec_Loc, vec_PicID, vec_Pat);
+            nConditions = max(CondG);
 
-                nGroups = max(G);
-                fprintf('  [Info] 数据压缩: %d -> %d (压缩率 %.1f%%)\n', ...
-                    global_cnt, nGroups, (1-nGroups/global_cnt)*100);
+            % 预分配 Map
+            Map_DestRow = zeros(global_cnt, 1);
+            Map_Weight  = zeros(global_cnt, 1, 'single');
 
-                % 预分配累加器
-                try
-                    Accumulator = zeros(nGroups, nCh, win_len, 'single');
-                    Counts      = zeros(nGroups, 1, 'single');
-                catch ME
-                    error('内存不足 (合并后仍过大): %s', ME.message);
+            % 预分配输出 Meta
+            % 我们无法预知确切行数，但上限是 nConditions * nCollapse
+            % 稍微多分配一点，最后截断
+            max_out_rows = nConditions * max(1, nCollapse);
+            out_Meta_Loc = zeros(max_out_rows, 1);
+            out_Meta_Pic = zeros(max_out_rows, 1);
+            out_Meta_Pat = zeros(max_out_rows, 1);
+            out_Meta_Stage = zeros(max_out_rows, 1);
+            out_Meta_SessCount = zeros(max_out_rows, 1); % 该Stage有多少个Session
+            out_Meta_DateRange = strings(max_out_rows, 1);
+
+            curr_out_row = 0;
+
+            if verbose, fprintf('  [Info] 计算索引映射与权重...\n'); end
+
+            for c = 1:nConditions
+                % 找到属于该 Condition 的所有 Epoch 索引
+                idx_cond = find(CondG == c);
+
+                % 在该 Condition 内，按 DateCode 和 SessionID 分组
+                sub_dates = vec_DateCode(idx_cond);
+                sub_sess  = vec_Session(idx_cond);
+
+                [SessG, u_sub_date, u_sub_sess] = findgroups(sub_dates, sub_sess);
+                nSessions = max(SessG);
+
+                % 统计每个 Session 有多少个 Trial (Count Trials per Session)
+                % histcounts 对于 integer group 很快
+                trials_per_sess = histcounts(SessG, 1:(nSessions+1));
+
+                % 对 Session 进行排序 (按日期)
+                % u_sub_date 是 string 数组，可以直接排序
+                T_Sess = table(u_sub_date, u_sub_sess, (1:nSessions)', 'VariableNames', {'D','S','OldID'});
+                T_Sess = sortrows(T_Sess, {'D','S'});
+                sorted_sess_indices = T_Sess.OldID; % 排序后的 Session 顺序
+
+                % --- 决定分段策略 ---
+                if nCollapse > 0
+                    % 目标：分为 nCollapse 个阶段
+                    nStages = nCollapse;
+                    if nSessions < nCollapse
+                        nStages = nSessions; % Session 不够分，有多少分多少
+                        edges = 0:nStages;
+                    else
+                        edges = round(linspace(0, nSessions, nStages + 1));
+                    end
+                else
+                    % 目标：不合并 (Session Averages) 或 AverageRepeats 模式
+                    if doAvg
+                        nStages = 1; % 全部合并成1个
+                        edges = [0, nSessions];
+                    else
+                        % 保持每个 Session 独立 (这里为了统一逻辑，也视为 Stage)
+                        nStages = nSessions;
+                        edges = 0:nStages;
+                    end
                 end
 
-                target_indices = G;
-                final_N = nGroups;
+                % --- 分配 ---
+                for s = 1:nStages
+                    % 获取当前 Stage 包含的 Session (在排序后的列表中的索引)
+                    sess_start = edges(s) + 1;
+                    sess_end   = edges(s+1);
+                    target_sess_ids = sorted_sess_indices(sess_start:sess_end);
 
-            else
-                % ... (原始模式代码不变，记得检查内存) ...
-                req_mem_gb = global_cnt * nCh * win_len * 2 / 1024^3;
-                if req_mem_gb > 16
-                    error('内存超限 (%.1f GB)。必须开启 AverageRepeats=true。', req_mem_gb);
+                    if isempty(target_sess_ids), continue; end
+
+                    % 这是一个新的输出行
+                    curr_out_row = curr_out_row + 1;
+
+                    % 记录 Meta
+                    out_Meta_Loc(curr_out_row) = u_Loc(c);
+                    out_Meta_Pic(curr_out_row) = u_Pic(c);
+                    out_Meta_Pat(curr_out_row) = u_Pat(c);
+                    out_Meta_Stage(curr_out_row) = s;
+                    nSessInStage = length(target_sess_ids);
+                    out_Meta_SessCount(curr_out_row) = nSessInStage;
+                    out_Meta_DateRange(curr_out_row) = T_Sess.D(target_sess_ids(1)) + " to " + T_Sess.D(target_sess_ids(end));
+
+                    % 填充 Map
+                    for k = 1:length(target_sess_ids)
+                        ss_id = target_sess_ids(k);
+                        % 找到属于这个 Session 的所有 Epoch (在全局列表中的索引)
+                        % 逻辑：Idx_Cond 中的哪些元素属于 SessG == ss_id
+                        global_indices = idx_cond(SessG == ss_id);
+
+                        % 设置目标行
+                        Map_DestRow(global_indices) = curr_out_row;
+
+                        % 设置权重
+                        % 公式：Weight = 1 / (TrialCount * SessionCountInStage)
+                        % 这样直接累加就是最终平均值，不需要再除
+                        nTrials = trials_per_sess(ss_id);
+                        w = 1 / (nTrials * nSessInStage);
+                        Map_Weight(global_indices) = w;
+                    end
                 end
-                Accumulator = zeros(global_cnt, nCh, win_len, 'int16');
-                target_indices = (1:global_cnt)';
             end
 
-            % === 4. Pass 2: 提取并累加 (Batch Processing) ===
-            if verbose, fprintf('  [Phase 2] 提取并处理数据...\n'); end
+            total_output_rows = curr_out_row;
+            fprintf('  [Info] 映射构建完成: 将输出 %d 行数据。\n', total_output_rows);
 
-            % 为了提高 IO 效率，我们按 SourceTrial 也就是 RawTensor 的行来遍历
-            % 找出哪些 Epoch 属于同一个 RawTensor 行，一次性切出来
+            % === 4. Pass 2: 极速加权累加 (Vectorized Accumulation) ===
+            % 预分配内存 (Single 精度)
+            Accumulator = zeros(total_output_rows, nCh, win_len, 'single');
 
-            % 进度条
-            unique_trials = unique(temp_SourceTrial);
-            nBlocks = length(unique_trials);
-            hWait = waitbar(0, 'Processing Epochs...');
+            unique_source_trials = unique(vec_SrcTrial);
+            nBlocks = length(unique_source_trials);
+
+            hWait = waitbar(0, 'Batch Processing...');
 
             for b = 1:nBlocks
                 if mod(b, 50) == 0, waitbar(b/nBlocks, hWait); end
 
-                uTrialIdx = unique_trials(b);
+                uTrialIdx = unique_source_trials(b);
 
-                % 找出所有属于当前长 Trial 的 Epoch 索引 (在 temp 列表中的位置)
-                current_mask = (temp_SourceTrial == uTrialIdx);
+                % 1. 获取当前 Block 涉及的所有 Epoch 信息
+                % 使用逻辑索引通常比 find 快
+                mask = (vec_SrcTrial == uTrialIdx);
 
-                % 对应的参数
-                these_onsets = temp_OnsetIdx(current_mask);
-                these_targets = target_indices(current_mask); % 它们应该去 Accumulator 的哪一行
+                these_onsets = vec_Onset(mask);
+                these_dest   = Map_DestRow(mask);
+                these_weight = Map_Weight(mask);
 
-                if isempty(these_onsets), continue; end
+                % 如果没有有效目标（比如被过滤掉了），跳过
+                valid_k = (these_dest > 0);
+                if ~any(valid_k), continue; end
 
-                % 读取整条长 Trial 数据 (int16 -> single 以便计算)
-                % [1, nCh, nTime]
-                long_data = obj.RawTensor(uTrialIdx, :, :);
+                these_onsets = these_onsets(valid_k);
+                these_dest   = these_dest(valid_k);
+                these_weight = these_weight(valid_k);
 
-                % 循环切片 (内存内操作，极快)
-                for k = 1:length(these_onsets)
-                    idx_s = these_onsets(k);
-                    idx_e = idx_s + win_len - 1;
+                % 2. 读取原始数据 (一次性读取整行)
+                % [1, nCh, nTime] -> [nCh, nTime]
+                raw_chunk = single(squeeze(obj.RawTensor(uTrialIdx, :, :)));
 
-                    % 切片 [1, nCh, win_len]
-                    % squeeze 可能会导致维度丢失，如果 nCh=1，要注意
-                    chunk = single(long_data(1, :, idx_s:idx_e));
+                % 3. 极速聚合策略
+                % 一个 SourceTrial 里可能包含属于同一个 DestRow 的多个 Epoch
+                % 先在本地合并，再写全局内存
 
-                    dest_row = these_targets(k);
+                u_dests = unique(these_dest);
+                for d_idx = 1:length(u_dests)
+                    target_row = u_dests(d_idx);
 
-                    if doAvg
-                        % 累加模式
-                        Accumulator(dest_row, :, :) = Accumulator(dest_row, :, :) + chunk;
-                        Counts(dest_row) = Counts(dest_row) + 1;
-                    else
-                        % 直接填充模式 (转回 int16 省空间)
-                        Accumulator(dest_row, :, :) = int16(chunk);
+                    % 找到属于这个目标行的 epoch 索引
+                    k_indices = (these_dest == target_row);
+                    k_onsets  = these_onsets(k_indices);
+                    k_weights = these_weight(k_indices);
+
+                    % 本地累加器 (Local Sum)
+                    % 这是一个 [nCh, win_len] 的矩阵
+                    local_sum = zeros(nCh, win_len, 'single');
+
+                    for i = 1:length(k_onsets)
+                        idx_s = k_onsets(i);
+                        % 提取并加权
+                        % raw_chunk(:, idx_s : idx_s+win_len-1) 是 [nCh, win_len]
+                        local_sum = local_sum + raw_chunk(:, idx_s : idx_s+win_len-1) * k_weights(i);
                     end
+
+                    % 写入全局 Accumulator
+                    Accumulator(target_row, :, :) = Accumulator(target_row, :, :) + reshape(local_sum, [1, nCh, win_len]);
                 end
             end
             close(hWait);
 
-            % === 5. 后处理 (平均计算) ===
-            if doAvg
-                epochData = Accumulator ./ Counts;
+            % === 5. 收尾 ===
+            epochData = Accumulator;
 
-                % [修改点 4] 输出表中包含 DateCode
-                epochMeta = table(tbl_Date, tbl_Sess, tbl_Loc, tbl_Pic, tbl_Pat, Counts, ...
-                    'VariableNames', {'DateCode', 'SessionID', 'Location', 'PicID', 'Pattern', 'AvgCount'});
-            else
-                epochData = Accumulator;
-                epochMeta = table(temp_DateCode, temp_Session, temp_Loc, temp_PicID, temp_Pattern, temp_SourceTrial, ...
-                    'VariableNames', {'DateCode', 'SessionID', 'Location', 'PicID', 'Pattern', 'OriginTrialIdx'});
+            % 截断 Meta 表
+            epochMeta = table(out_Meta_Loc(1:total_output_rows), ...
+                out_Meta_Pic(1:total_output_rows), ...
+                out_Meta_Pat(1:total_output_rows), ...
+                out_Meta_Stage(1:total_output_rows), ...
+                out_Meta_SessCount(1:total_output_rows), ...
+                out_Meta_DateRange(1:total_output_rows), ...
+                'VariableNames', {'Location', 'PicID', 'Pattern', 'StageID', 'SessionsAveraged', 'DateRange'});
+
+            % 去基线
+            if isfield(obj.Config, 'RemoveBaseline') && obj.Config.RemoveBaseline
+                epochData = epochData - mean(epochData(:,:,1:20), 3);
             end
-            if strcmp(obj.Config.TargetParadigms{1},'EVENT')
-                epochData = epochData - squmean(epochData(:,:,1:20),3);
-            end
 
-            if verbose, fprintf('=== 完成 ===\n'); end
+            if verbose, fprintf('=== 切片完成 (耗时 %.2fs) ===\n', toc(tStart)); end
 
-            if doSave
-                if verbose, fprintf('  [Save] 正在保存切片数据...\n'); end
-                obj.save_epoch_dataset(epochData, epochMeta, doAvg, saveDir);
+            if p.Results.Save
+                obj.save_epoch_dataset(epochData, epochMeta, true, p.Results.SaveDir);
             end
         end
 
@@ -767,32 +854,77 @@ classdef NeuroAnalyzer < handle
                 stats.h_val(c) = h;
             end
         end
-    
-    
+
+
         % ------------------------滤波----------------------------%
+
         function filter_raw_data(obj)
-            % -----------------------------滤波50hz,100hz----------------------------%
-            obj.RawTensor = single(obj.RawTensor);
-            [ntrial,nch,~] = size(obj.RawTensor);
-            frequency = [50,100];
-            for m = 1:2
-                [b,a] = notch_filter(500, frequency(m), 10);
-                for i = 1:ntrial
-                    if mod(i,1000) ==0
-                        disp(i)
-                    end
-                    for channel = 1:nch
-                        obj.RawTensor(i,channel,:)  = filtfilt(b,a,squeeze(obj.RawTensor(i,channel,:)));
-                    end
+            fprintf('>>> 开始执行陷波滤波 (50Hz, 100Hz) ...\n');
+
+            % 1. 获取基础参数
+            [nTrials, nCh, nTime] = size(obj.RawTensor);
+
+            if isfield(obj.Config, 'Fs')
+                Fs = obj.Config.Fs;
+            else
+                Fs = 1000;
+                warning('Config 中未找到 Fs，默认使用 1000Hz');
+            end
+
+            % 2. 设计滤波器 (使用 designfilt 设计，转换为 b, a)
+            % 50Hz 陷波
+            d50 = designfilt('bandstopiir', 'FilterOrder', 2, ...
+                'HalfPowerFrequency1', 48, 'HalfPowerFrequency2', 52, ...
+                'DesignMethod', 'butter', 'SampleRate', Fs);
+            [b50, a50] = tf(d50);
+
+            % 100Hz 陷波
+            d100 = designfilt('bandstopiir', 'FilterOrder', 2, ...
+                'HalfPowerFrequency1', 98, 'HalfPowerFrequency2', 102, ...
+                'DesignMethod', 'butter', 'SampleRate', Fs);
+            [b100, a100] = tf(d100);
+
+            % 3. 准备处理
+            hWait = waitbar(0, 'Filtering Data...');
+            % 检查数据类型，决定是否需要转回 int16
+            isInt16 = isa(obj.RawTensor, 'int16');
+
+            % 4. 逐个 Trial 循环处理
+            for i = 1:nTrials
+                if mod(i, 50) == 0
+                    waitbar(i/nTrials, hWait, sprintf('Filtering Trial %d/%d', i, nTrials));
                 end
-                for i = 1:ntrial
-                    for channel = 1:nch
-                        obj.RawTensor(i,channel,:)  = filtfilt(b,a,squeeze(obj.RawTensor(i,channel,:)));
-                    end
+
+                % --- [步骤 A] 读取并转置 ---
+                % 原始形状: [nCh, nTime]
+                % 我们需要转置为 [nTime, nCh]，因为 filtfilt 默认滤“列”
+                trialData = single(squeeze(obj.RawTensor(i, :, :))).';
+
+                % --- [步骤 B] 滤波 (现在每一列是一个 Channel 的时间序列) ---
+
+                % 滤 50Hz
+                trialData = filtfilt(b50, a50, trialData);
+
+                % 滤 100Hz
+                trialData = filtfilt(b100, a100, trialData);
+
+                % --- [步骤 C] 转置回来并保存 ---
+                % 滤波后形状仍为 [nTime, nCh]，转置回 [nCh, nTime]
+                trialData = trialData.';
+
+                if isInt16
+                    obj.RawTensor(i, :, :) = int16(trialData);
+                else
+                    obj.RawTensor(i, :, :) = trialData;
                 end
             end
+
+            close(hWait);
+            fprintf('  [完成] 滤波结束。\n');
         end
+
     end
 end
+
 
 

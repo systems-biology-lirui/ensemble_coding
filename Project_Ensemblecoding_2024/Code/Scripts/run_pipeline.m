@@ -14,7 +14,7 @@ builder.run();
 clear;
 config = Main_Config();
 dbPath = 'D:/ensemble_coding/Project_Ensemblecoding_2024/Data/01_Database';
-analyzer = NeuroDB.NeuroAnalyzer('QQ', 'SSGv', 'SSVEP_B', 'MUA2', dbPath);
+analyzer = NeuroDB.NeuroAnalyzer('QQ_new', 'SSGv', 'SSVEP_B', 'MUA2', dbPath);
 
 % 由于SSGnv实在是太多了，只选取和SSGv同样的数量进行（DG：61session）
 % analyzer.subset_sessions(61);
@@ -34,7 +34,7 @@ if ~strcmp(analyzer.BlockName,'SSGv') & ~strcmp(analyzer.BlockName,'SSGnv')
         analyzer.MetaTable.Location(i) = 0;
     end
 end
-
+%%
 analyzer.filter_raw_data()
 
 %% ---------------------频谱分析-----------------------------%
@@ -62,8 +62,10 @@ fftresult.dg.ssgnv.SNR = info.SNR;
 
 
 %% -------------------进行切片（PIC）-----------------------%
-[avgEpochs, avgMeta] = analyzer.slice_epochs('AverageRepeats', true, 'Save',true);
-head(avgMeta)
+% [avgEpochs, avgMeta] = analyzer.slice_epochs('AverageRepeats', true, 'Save',true);
+[data, meta] = analyzer.slice_epochs('CollapseToCount', 13, 'Save', true);
+% CollapseToCount会强制先进行sessionavg，原本QQ_ssgv_b有134个
+head(meta)
 
 
 
