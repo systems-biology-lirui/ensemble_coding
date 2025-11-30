@@ -240,7 +240,7 @@ classdef Builder < handle
             % 2. 拼接最终文件名
             % 格式: Subject_Block_Paradigm_Master.mat
             % 例如: DG_MGv_SSVEP_A_Master.mat
-            saveName = sprintf('%s_%s_%s_%sMaster.mat', obj.Config.Subject, targetBlock, paraStr, obj.Config.DataType);
+            saveName = sprintf('%s_%s_%s_%sMaster.mat', obj.Config.Subject_save, targetBlock, paraStr, obj.Config.DataType);
             savePath = fullfile(obj.Config.Path.DB, saveName);
 
             fprintf('  保存至: %s ...\n', savePath);

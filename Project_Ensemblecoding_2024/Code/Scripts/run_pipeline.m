@@ -12,26 +12,33 @@ builder.run();
 %% ------------------trial水平的处理----------------------- %
 % ---------------------------------------------------------%
 clear;
+macaques = {'DG','QQ_new','QQ_old'};
+labels = {'MGnv','MGv','SG','SSGnv'};
 config = Main_Config();
-dbPath = 'D:/ensemble_coding/Project_Ensemblecoding_2024/Data/01_Database';
-analyzer = NeuroDB.NeuroAnalyzer('QQ_new', 'SSGv', 'SSVEP_B', 'MUA2', dbPath);
+for m = 1:length(macaques)
+    for l = 1:length(labels)
+        
+        dbPath = 'D:/ensemble_coding/Project_Ensemblecoding_2024/Data/01_Database';
+        analyzer = NeuroDB.NeuroAnalyzer(macaques{m}, labels{l}, 'EVENT', 'MUA2', dbPath);
+        % 由于SSGnv实在是太多了，只选取和SSGv同样的数量进行（DG：61session）
+        % analyzer.subset_sessions(61);
+        % analyzer.subset_data('Condition', [-1, 1, 9]);
 
-% 由于SSGnv实在是太多了，只选取和SSGv同样的数量进行（DG：61session）
-% analyzer.subset_sessions(61);
-% analyzer.subset_data('Condition', [-1, 1, 9]);
 
+        % ---------------------预处理-------------------------------%
+        % ---------------------------------------------------------%
+        % 1.减去baseline（从trial提取epoch应该用trial前作为baseline）
+        baseline = mean(analyzer.RawTensor(:,:,1:100),3);
+        analyzer.RawTensor = analyzer.RawTensor - int16(baseline);
+        % 2.进行滤波
+        % 3.如有必要，SSGv需要使用getSSGvpattern
 
-% ---------------------预处理-------------------------------%
-% ---------------------------------------------------------%
-% 1.减去baseline（从trial提取epoch应该用trial前作为baseline）
-baseline = mean(analyzer.RawTensor(:,:,1:100),3);
-analyzer.RawTensor = analyzer.RawTensor - int16(baseline);
-% 2.进行滤波
-% 3.如有必要，SSGv需要使用getSSGvpattern
-
-if ~strcmp(analyzer.BlockName,'SSGv') & ~strcmp(analyzer.BlockName,'SSGnv')
-    for i = 1:height(analyzer.MetaTable)
-        analyzer.MetaTable.Location(i) = 0;
+        if ~strcmp(analyzer.BlockName,'SSGv') & ~strcmp(analyzer.BlockName,'SSGnv')
+            for i = 1:height(analyzer.MetaTable)
+                analyzer.MetaTable.Location(i) = 0;
+            end
+        end
+        [~, ~] = analyzer.slice_epochs('Save', true);
     end
 end
 %%
