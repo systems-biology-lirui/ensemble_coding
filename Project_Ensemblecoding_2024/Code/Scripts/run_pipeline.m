@@ -12,12 +12,10 @@ builder.run();
 %% ------------------trial水平的处理----------------------- %
 % ---------------------------------------------------------%
 clear;
-macaques = {'DG','QQ_new','QQ_old'};
-labels = {'MGnv','MGv','SG','SSGnv'};
-config = Main_Config();
+macaques = {'DG','QQ_old','QQ_new'};
+labels = {'MGv','MGnv','SG','SSGnv'};
 for m = 1:length(macaques)
     for l = 1:length(labels)
-        
         dbPath = 'D:/ensemble_coding/Project_Ensemblecoding_2024/Data/01_Database';
         analyzer = NeuroDB.NeuroAnalyzer(macaques{m}, labels{l}, 'EVENT', 'MUA2', dbPath);
         % 由于SSGnv实在是太多了，只选取和SSGv同样的数量进行（DG：61session）
@@ -28,8 +26,8 @@ for m = 1:length(macaques)
         % ---------------------预处理-------------------------------%
         % ---------------------------------------------------------%
         % 1.减去baseline（从trial提取epoch应该用trial前作为baseline）
-        baseline = mean(analyzer.RawTensor(:,:,1:100),3);
-        analyzer.RawTensor = analyzer.RawTensor - int16(baseline);
+        baseline = mean(single(analyzer.RawTensor(:,:,1:100)),3);
+        analyzer.RawTensor = single(analyzer.RawTensor) - baseline;
         % 2.进行滤波
         % 3.如有必要，SSGv需要使用getSSGvpattern
 
@@ -38,7 +36,7 @@ for m = 1:length(macaques)
                 analyzer.MetaTable.Location(i) = 0;
             end
         end
-        [~, ~] = analyzer.slice_epochs('Save', true);
+        [~, ~] = analyzer.slice_epochs('SingleTrials',true ,'Save', true);
     end
 end
 %%

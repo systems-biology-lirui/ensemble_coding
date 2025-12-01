@@ -96,7 +96,7 @@ classdef NeuroAnalyzer < handle
 
 
         % ---------------------提取epoch--------------------------%
-        function [epochData, epochMeta] = slice_epochs(obj, varargin)
+        function [epochData, epochMeta] = slice_epochs1(obj, varargin)
             % 解析参数
             p = inputParser;
             addParameter(p, 'CollapseToCount', 0, @isnumeric); % 压缩成几个阶段 (Repeat)
@@ -104,11 +104,13 @@ classdef NeuroAnalyzer < handle
             addParameter(p, 'Verbose', true, @islogical);
             addParameter(p, 'Save', false, @islogical);
             addParameter(p, 'SaveDir', '', @ischar);
+            addParameter(p, 'SingleTrials', false, @islogical);
             parse(p, varargin{:});
 
             nCollapse = p.Results.CollapseToCount;
             doAvg     = p.Results.AverageRepeats;
             verbose   = p.Results.Verbose;
+            isSingleTrial = p.Results.SingleTrials;
 
             % 性能计时
             tStart = tic;
@@ -198,117 +200,140 @@ classdef NeuroAnalyzer < handle
             %   1. DestRow: 它属于哪个最终结果行
             %   2. Weight: 它在累加时的权重 (1/该Session的总Trial数)
             %   3. NormFactor: 最终除以多少 (该Stage包含的Session数)
+            if isSingleTrial
+                if verbose, fprintf('  [Info] SingleTrials 模式: 不进行平均，保留原始 Epochs。\n'); end
 
-            % 按条件 (Loc, Pic, Pat) 分组
-            [CondG, u_Loc, u_Pic, u_Pat] = findgroups(vec_Loc, vec_PicID, vec_Pat);
-            nConditions = max(CondG);
+                % 1. 直接 1对1 映射
+                % Pass 1 扫描到的 global_cnt 就是总行数
+                total_output_rows = global_cnt;
 
-            % 预分配 Map
-            Map_DestRow = zeros(global_cnt, 1);
-            Map_Weight  = zeros(global_cnt, 1, 'single');
+                % 2. 建立 Map (所有权重为 1，目标行就是自身索引)
+                Map_DestRow = (1:global_cnt)';
+                Map_Weight  = ones(global_cnt, 1, 'single');
 
-            % 预分配输出 Meta
-            % 我们无法预知确切行数，但上限是 nConditions * nCollapse
-            % 稍微多分配一点，最后截断
-            max_out_rows = nConditions * max(1, nCollapse);
-            out_Meta_Loc = zeros(max_out_rows, 1);
-            out_Meta_Pic = zeros(max_out_rows, 1);
-            out_Meta_Pat = zeros(max_out_rows, 1);
-            out_Meta_Stage = zeros(max_out_rows, 1);
-            out_Meta_SessCount = zeros(max_out_rows, 1); % 该Stage有多少个Session
-            out_Meta_DateRange = strings(max_out_rows, 1);
+                % 3. 直接构建 Meta 数据 (直接使用 Pass 1 产生的向量)
+                % 注意：这里直接截取有效部分
+                out_Meta_Loc = vec_Loc(1:global_cnt);
+                out_Meta_Pic = vec_PicID(1:global_cnt);
+                out_Meta_Pat = vec_Pat(1:global_cnt);
 
-            curr_out_row = 0;
+                % 对于 Single Trial，Stage 概念不再适用，统一设为 1
+                out_Meta_Stage = ones(global_cnt, 1);
+                out_Meta_SessCount = ones(global_cnt, 1);
 
-            if verbose, fprintf('  [Info] 计算索引映射与权重...\n'); end
+                % 日期处理
+                out_Meta_DateRange = vec_DateCode(1:global_cnt);
+            else
+                % 按条件 (Loc, Pic, Pat) 分组
+                [CondG, u_Loc, u_Pic, u_Pat] = findgroups(vec_Loc, vec_PicID, vec_Pat);
+                nConditions = max(CondG);
 
-            for c = 1:nConditions
-                % 找到属于该 Condition 的所有 Epoch 索引
-                idx_cond = find(CondG == c);
+                % 预分配 Map
+                Map_DestRow = zeros(global_cnt, 1);
+                Map_Weight  = zeros(global_cnt, 1, 'single');
 
-                % 在该 Condition 内，按 DateCode 和 SessionID 分组
-                sub_dates = vec_DateCode(idx_cond);
-                sub_sess  = vec_Session(idx_cond);
+                % 预分配输出 Meta
+                % 我们无法预知确切行数，但上限是 nConditions * nCollapse
+                % 稍微多分配一点，最后截断
+                max_out_rows = nConditions * max(1, nCollapse);
+                out_Meta_Loc = zeros(max_out_rows, 1);
+                out_Meta_Pic = zeros(max_out_rows, 1);
+                out_Meta_Pat = zeros(max_out_rows, 1);
+                out_Meta_Stage = zeros(max_out_rows, 1);
+                out_Meta_SessCount = zeros(max_out_rows, 1); % 该Stage有多少个Session
+                out_Meta_DateRange = strings(max_out_rows, 1);
 
-                [SessG, u_sub_date, u_sub_sess] = findgroups(sub_dates, sub_sess);
-                nSessions = max(SessG);
+                curr_out_row = 0;
 
-                % 统计每个 Session 有多少个 Trial (Count Trials per Session)
-                % histcounts 对于 integer group 很快
-                trials_per_sess = histcounts(SessG, 1:(nSessions+1));
+                if verbose, fprintf('  [Info] 计算索引映射与权重...\n'); end
 
-                % 对 Session 进行排序 (按日期)
-                % u_sub_date 是 string 数组，可以直接排序
-                T_Sess = table(u_sub_date, u_sub_sess, (1:nSessions)', 'VariableNames', {'D','S','OldID'});
-                T_Sess = sortrows(T_Sess, {'D','S'});
-                sorted_sess_indices = T_Sess.OldID; % 排序后的 Session 顺序
+                for c = 1:nConditions
+                    % 找到属于该 Condition 的所有 Epoch 索引
+                    idx_cond = find(CondG == c);
 
-                % --- 决定分段策略 ---
-                if nCollapse > 0
-                    % 目标：分为 nCollapse 个阶段
-                    nStages = nCollapse;
-                    if nSessions < nCollapse
-                        nStages = nSessions; % Session 不够分，有多少分多少
-                        edges = 0:nStages;
+                    % 在该 Condition 内，按 DateCode 和 SessionID 分组
+                    sub_dates = vec_DateCode(idx_cond);
+                    sub_sess  = vec_Session(idx_cond);
+
+                    [SessG, u_sub_date, u_sub_sess] = findgroups(sub_dates, sub_sess);
+                    nSessions = max(SessG);
+
+                    % 统计每个 Session 有多少个 Trial (Count Trials per Session)
+                    % histcounts 对于 integer group 很快
+                    trials_per_sess = histcounts(SessG, 1:(nSessions+1));
+
+                    % 对 Session 进行排序 (按日期)
+                    % u_sub_date 是 string 数组，可以直接排序
+                    T_Sess = table(u_sub_date, u_sub_sess, (1:nSessions)', 'VariableNames', {'D','S','OldID'});
+                    T_Sess = sortrows(T_Sess, {'D','S'});
+                    sorted_sess_indices = T_Sess.OldID; % 排序后的 Session 顺序
+
+                    % --- 决定分段策略 ---
+                    if nCollapse > 0
+                        % 目标：分为 nCollapse 个阶段
+                        nStages = nCollapse;
+                        if nSessions < nCollapse
+                            nStages = nSessions; % Session 不够分，有多少分多少
+                            edges = 0:nStages;
+                        else
+                            edges = round(linspace(0, nSessions, nStages + 1));
+                        end
                     else
-                        edges = round(linspace(0, nSessions, nStages + 1));
+                        % 目标：不合并 (Session Averages) 或 AverageRepeats 模式
+                        if doAvg
+                            nStages = 1; % 全部合并成1个
+                            edges = [0, nSessions];
+                        else
+                            % 保持每个 Session 独立 (这里为了统一逻辑，也视为 Stage)
+                            nStages = nSessions;
+                            edges = 0:nStages;
+                        end
                     end
-                else
-                    % 目标：不合并 (Session Averages) 或 AverageRepeats 模式
-                    if doAvg
-                        nStages = 1; % 全部合并成1个
-                        edges = [0, nSessions];
-                    else
-                        % 保持每个 Session 独立 (这里为了统一逻辑，也视为 Stage)
-                        nStages = nSessions;
-                        edges = 0:nStages;
+
+                    % --- 分配 ---
+                    for s = 1:nStages
+                        % 获取当前 Stage 包含的 Session (在排序后的列表中的索引)
+                        sess_start = edges(s) + 1;
+                        sess_end   = edges(s+1);
+                        target_sess_ids = sorted_sess_indices(sess_start:sess_end);
+
+                        if isempty(target_sess_ids), continue; end
+
+                        % 这是一个新的输出行
+                        curr_out_row = curr_out_row + 1;
+
+                        % 记录 Meta
+                        out_Meta_Loc(curr_out_row) = u_Loc(c);
+                        out_Meta_Pic(curr_out_row) = u_Pic(c);
+                        out_Meta_Pat(curr_out_row) = u_Pat(c);
+                        out_Meta_Stage(curr_out_row) = s;
+                        nSessInStage = length(target_sess_ids);
+                        out_Meta_SessCount(curr_out_row) = nSessInStage;
+                        out_Meta_DateRange(curr_out_row) = T_Sess.D(target_sess_ids(1)) + " to " + T_Sess.D(target_sess_ids(end));
+
+                        % 填充 Map
+                        for k = 1:length(target_sess_ids)
+                            ss_id = target_sess_ids(k);
+                            % 找到属于这个 Session 的所有 Epoch (在全局列表中的索引)
+                            % 逻辑：Idx_Cond 中的哪些元素属于 SessG == ss_id
+                            global_indices = idx_cond(SessG == ss_id);
+
+                            % 设置目标行
+                            Map_DestRow(global_indices) = curr_out_row;
+
+                            % 设置权重
+                            % 公式：Weight = 1 / (TrialCount * SessionCountInStage)
+                            % 这样直接累加就是最终平均值，不需要再除
+                            nTrials = trials_per_sess(ss_id);
+                            w = 1 / (nTrials * nSessInStage);
+                            Map_Weight(global_indices) = w;
+                        end
                     end
                 end
 
-                % --- 分配 ---
-                for s = 1:nStages
-                    % 获取当前 Stage 包含的 Session (在排序后的列表中的索引)
-                    sess_start = edges(s) + 1;
-                    sess_end   = edges(s+1);
-                    target_sess_ids = sorted_sess_indices(sess_start:sess_end);
-
-                    if isempty(target_sess_ids), continue; end
-
-                    % 这是一个新的输出行
-                    curr_out_row = curr_out_row + 1;
-
-                    % 记录 Meta
-                    out_Meta_Loc(curr_out_row) = u_Loc(c);
-                    out_Meta_Pic(curr_out_row) = u_Pic(c);
-                    out_Meta_Pat(curr_out_row) = u_Pat(c);
-                    out_Meta_Stage(curr_out_row) = s;
-                    nSessInStage = length(target_sess_ids);
-                    out_Meta_SessCount(curr_out_row) = nSessInStage;
-                    out_Meta_DateRange(curr_out_row) = T_Sess.D(target_sess_ids(1)) + " to " + T_Sess.D(target_sess_ids(end));
-
-                    % 填充 Map
-                    for k = 1:length(target_sess_ids)
-                        ss_id = target_sess_ids(k);
-                        % 找到属于这个 Session 的所有 Epoch (在全局列表中的索引)
-                        % 逻辑：Idx_Cond 中的哪些元素属于 SessG == ss_id
-                        global_indices = idx_cond(SessG == ss_id);
-
-                        % 设置目标行
-                        Map_DestRow(global_indices) = curr_out_row;
-
-                        % 设置权重
-                        % 公式：Weight = 1 / (TrialCount * SessionCountInStage)
-                        % 这样直接累加就是最终平均值，不需要再除
-                        nTrials = trials_per_sess(ss_id);
-                        w = 1 / (nTrials * nSessInStage);
-                        Map_Weight(global_indices) = w;
-                    end
-                end
+                total_output_rows = curr_out_row;
+                fprintf('  [Info] 映射构建完成: 将输出 %d 行数据。\n', total_output_rows);
             end
-
-            total_output_rows = curr_out_row;
-            fprintf('  [Info] 映射构建完成: 将输出 %d 行数据。\n', total_output_rows);
-
             % === 4. Pass 2: 极速加权累加 (Vectorized Accumulation) ===
             % 预分配内存 (Single 精度)
             Accumulator = zeros(total_output_rows, nCh, win_len, 'single');
@@ -921,6 +946,273 @@ classdef NeuroAnalyzer < handle
 
             close(hWait);
             fprintf('  [完成] 滤波结束。\n');
+        end
+
+
+        function [epochData, epochMeta] = slice_epochs(obj, varargin)
+            % 解析参数
+            p = inputParser;
+            addParameter(p, 'CollapseToCount', 0, @isnumeric); % 压缩成几个阶段
+            addParameter(p, 'AverageRepeats', false, @islogical);
+            addParameter(p, 'Verbose', true, @islogical);
+            addParameter(p, 'Save', false, @islogical);
+            addParameter(p, 'SaveDir', '', @ischar);
+            addParameter(p, 'SingleTrials', false, @islogical);
+            parse(p, varargin{:});
+
+            nCollapse = p.Results.CollapseToCount;
+            doAvg     = p.Results.AverageRepeats;
+            verbose   = p.Results.Verbose;
+            isSingleTrial = p.Results.SingleTrials;
+
+            % 性能计时
+            tStart = tic;
+
+            % === 1. 基础参数与时间轴 ===
+            fs = obj.Config.Fs;
+            soa_pts    = round(obj.Config.StimSOA / 1000 * fs);
+            offset_pts = round(obj.Config.StimOffset / 1000 * fs);
+            t_pre = obj.Config.EpochWin(1);
+            t_post = obj.Config.EpochWin(2);
+            nPre = round(abs(t_pre) / 1000 * fs);
+            nPost = round(t_post / 1000 * fs);
+            win_len = nPre + nPost + 1;
+            obj.TimeVecEpoch = linspace(t_pre, t_post, win_len);
+
+            [nLongTrials, nCh, maxLongTime] = size(obj.RawTensor);
+
+            if verbose, fprintf('>>> 开始极速切片 (Target Repeats: %d) <<<\n', nCollapse); end
+
+            % === 2. Pass 1: 快速扫描构建索引 (不读数据) ===
+            lens = cellfun(@length, obj.StimSeq);
+            nEst = sum(lens);
+
+            % 使用原生数组代替 struct 数组以提升速度
+            vec_DateCode = strings(nEst, 1);
+            vec_Session  = zeros(nEst, 1, 'double');
+            vec_Loc      = zeros(nEst, 1, 'int16');
+            vec_PicID    = zeros(nEst, 1, 'int16');
+            vec_Pat      = zeros(nEst, 1, 'int16');
+            vec_SrcTrial = zeros(nEst, 1, 'int32');
+            vec_Onset    = zeros(nEst, 1, 'int32');
+
+            global_cnt = 0;
+            for i = 1:nLongTrials
+                seq = obj.StimSeq{i};
+                if isempty(seq), continue; end
+
+                cur_date = string(obj.MetaTable.DateCode(i));
+                if iscell(cur_date), cur_date = cur_date{1}; end
+                cur_sess = obj.MetaTable.SessionID(i);
+                cur_loc  = obj.MetaTable.Location(i);
+                if iscell(cur_loc), cur_loc = -1; end
+
+                if i <= length(obj.Pattern), pat = obj.Pattern{i}; else, pat = []; end
+                if iscell(pat), try pat=[pat{:}]; catch, pat=zeros(size(seq)); end; end
+
+                min_len = min(length(seq), length(pat));
+
+                k_vec = 1:min_len;
+                onsets = offset_pts + (k_vec-1)*soa_pts - nPre;
+
+                valid_mask = (onsets >= 1) & (onsets + win_len - 1 <= maxLongTime);
+                if ~any(valid_mask), continue; end
+
+                valid_onsets = onsets(valid_mask);
+                nValid = length(valid_onsets);
+
+                idx_range = global_cnt + (1:nValid);
+                vec_DateCode(idx_range) = cur_date;
+                vec_Session(idx_range)  = cur_sess;
+                vec_Loc(idx_range)      = cur_loc;
+                vec_PicID(idx_range)    = seq(valid_mask);
+                vec_Pat(idx_range)      = pat(valid_mask);
+                vec_SrcTrial(idx_range) = i;
+                vec_Onset(idx_range)    = valid_onsets;
+
+                global_cnt = global_cnt + nValid;
+            end
+
+            if verbose, fprintf('  [Info] 扫描完成: 找到 %d 个原始 Epochs (耗时 %.2fs)\n', global_cnt, toc(tStart)); end
+
+            % === 2.5. 【新增】按 PicID 过滤 ===
+            % 创建一个逻辑掩码，只保留 PicID 在 1 到 18 之间的 epoch
+            picid_filter_mask = (vec_PicID >= 1) & (vec_PicID <= 18);
+
+            % 应用过滤器，获取有效索引
+            valid_idx = find(picid_filter_mask);
+            global_cnt = length(valid_idx); % 更新 global_cnt 为过滤后的数量
+
+            % 检查过滤后是否还有 epoch
+            if global_cnt == 0
+                if verbose
+                    fprintf('  [Warning] 没有找到 PicID 在 1-18 范围内的 epoch。返回空结果。\n');
+                end
+                epochData = [];
+                epochMeta = table('Size', [0 6], ...
+                    'VariableTypes', {'double', 'double', 'double', 'double', 'double', 'string'}, ...
+                    'VariableNames', {'Location', 'PicID', 'Pattern', 'StageID', 'SessionsAveraged', 'DateRange'});
+                return; % 提前退出函数
+            end
+
+            % 使用过滤器截断所有向量
+            vec_DateCode = vec_DateCode(valid_idx);
+            vec_Session  = vec_Session(valid_idx);
+            vec_Loc      = vec_Loc(valid_idx);
+            vec_PicID    = vec_PicID(valid_idx);
+            vec_Pat      = vec_Pat(valid_idx);
+            vec_SrcTrial = vec_SrcTrial(valid_idx);
+            vec_Onset    = vec_Onset(valid_idx);
+
+            if verbose, fprintf('  [Info] PicID 过滤完成: 保留 %d 个 Epochs。\n', global_cnt); end
+            % === 过滤部分结束 ===
+
+            % === 3. 核心计算：权重分配与目标映射 ===
+            if isSingleTrial
+                if verbose, fprintf('  [Info] SingleTrials 模式: 不进行平均，保留原始 Epochs。\n'); end
+                total_output_rows = global_cnt;
+                Map_DestRow = (1:global_cnt)';
+                Map_Weight  = ones(global_cnt, 1, 'single');
+                out_Meta_Loc = vec_Loc;
+                out_Meta_Pic = vec_PicID;
+                out_Meta_Pat = vec_Pat;
+                out_Meta_Stage = ones(global_cnt, 1);
+                out_Meta_SessCount = ones(global_cnt, 1);
+                out_Meta_DateRange = vec_DateCode;
+            else
+                % 按条件 分组
+                [CondG, u_Loc, u_Pic, u_Pat] = findgroups(vec_Loc, vec_PicID, vec_Pat);
+                nConditions = max(CondG);
+
+                Map_DestRow = zeros(global_cnt, 1);
+                Map_Weight  = zeros(global_cnt, 1, 'single');
+
+                max_out_rows = nConditions * max(1, nCollapse);
+                out_Meta_Loc = zeros(max_out_rows, 1);
+                out_Meta_Pic = zeros(max_out_rows, 1);
+                out_Meta_Pat = zeros(max_out_rows, 1);
+                out_Meta_Stage = zeros(max_out_rows, 1);
+                out_Meta_SessCount = zeros(max_out_rows, 1);
+                out_Meta_DateRange = strings(max_out_rows, 1);
+
+                curr_out_row = 0;
+                if verbose, fprintf('  [Info] 计算索引映射与权重...\n'); end
+
+                for c = 1:nConditions
+                    idx_cond = find(CondG == c);
+                    sub_dates = vec_DateCode(idx_cond);
+                    sub_sess  = vec_Session(idx_cond);
+
+                    [SessG, u_sub_date, u_sub_sess] = findgroups(sub_dates, sub_sess);
+                    nSessions = max(SessG);
+                    trials_per_sess = histcounts(SessG, 1:(nSessions+1));
+
+                    T_Sess = table(u_sub_date, u_sub_sess, (1:nSessions)', 'VariableNames', {'D','S','OldID'});
+                    T_Sess = sortrows(T_Sess, {'D','S'});
+                    sorted_sess_indices = T_Sess.OldID;
+
+                    if nCollapse > 0
+                        nStages = nCollapse;
+                        if nSessions < nCollapse
+                            nStages = nSessions;
+                            edges = 0:nStages;
+                        else
+                            edges = round(linspace(0, nSessions, nStages + 1));
+                        end
+                    else
+                        if doAvg
+                            nStages = 1;
+                            edges = [0, nSessions];
+                        else
+                            nStages = nSessions;
+                            edges = 0:nStages;
+                        end
+                    end
+
+                    for s = 1:nStages
+                        sess_start = edges(s) + 1;
+                        sess_end   = edges(s+1);
+                        target_sess_ids = sorted_sess_indices(sess_start:sess_end);
+                        if isempty(target_sess_ids), continue; end
+
+                        curr_out_row = curr_out_row + 1;
+                        out_Meta_Loc(curr_out_row) = u_Loc(c);
+                        out_Meta_Pic(curr_out_row) = u_Pic(c);
+                        out_Meta_Pat(curr_out_row) = u_Pat(c);
+                        out_Meta_Stage(curr_out_row) = s;
+                        nSessInStage = length(target_sess_ids);
+                        out_Meta_SessCount(curr_out_row) = nSessInStage;
+                        out_Meta_DateRange(curr_out_row) = T_Sess.D(target_sess_ids(1)) + " to " + T_Sess.D(target_sess_ids(end));
+
+                        for k = 1:length(target_sess_ids)
+                            ss_id = target_sess_ids(k);
+                            global_indices = idx_cond(SessG == ss_id);
+                            Map_DestRow(global_indices) = curr_out_row;
+                            nTrials = trials_per_sess(ss_id);
+                            w = 1 / (nTrials * nSessInStage);
+                            Map_Weight(global_indices) = w;
+                        end
+                    end
+                end
+                total_output_rows = curr_out_row;
+                fprintf('  [Info] 映射构建完成: 将输出 %d 行数据。\n', total_output_rows);
+            end
+
+            % === 4. Pass 2: 极速加权累加 (Vectorized Accumulation) ===
+            Accumulator = zeros(total_output_rows, nCh, win_len, 'single');
+            unique_source_trials = unique(vec_SrcTrial);
+            nBlocks = length(unique_source_trials);
+            hWait = waitbar(0, 'Batch Processing...');
+
+            for b = 1:nBlocks
+                if mod(b, 50) == 0, waitbar(b/nBlocks, hWait); end
+                uTrialIdx = unique_source_trials(b);
+                mask = (vec_SrcTrial == uTrialIdx);
+                these_onsets = vec_Onset(mask);
+                these_dest   = Map_DestRow(mask);
+                these_weight = Map_Weight(mask);
+                valid_k = (these_dest > 0);
+                if ~any(valid_k), continue; end
+                these_onsets = these_onsets(valid_k);
+                these_dest   = these_dest(valid_k);
+                these_weight = these_weight(valid_k);
+                raw_chunk = single(squeeze(obj.RawTensor(uTrialIdx, :, :)));
+                u_dests = unique(these_dest);
+                for d_idx = 1:length(u_dests)
+                    target_row = u_dests(d_idx);
+                    k_indices = (these_dest == target_row);
+                    k_onsets  = these_onsets(k_indices);
+                    k_weights = these_weight(k_indices);
+                    local_sum = zeros(nCh, win_len, 'single');
+                    for i = 1:length(k_onsets)
+                        idx_s = k_onsets(i);
+                        local_sum = local_sum + raw_chunk(:, idx_s : idx_s+win_len-1) * k_weights(i);
+                    end
+                    Accumulator(target_row, :, :) = Accumulator(target_row, :, :) + reshape(local_sum, [1, nCh, win_len]);
+                end
+            end
+            close(hWait);
+
+            % === 5. 收尾 ===
+            epochData = Accumulator;
+            epochMeta = table(out_Meta_Loc(1:total_output_rows), ...
+                out_Meta_Pic(1:total_output_rows), ...
+                out_Meta_Pat(1:total_output_rows), ...
+                out_Meta_Stage(1:total_output_rows), ...
+                out_Meta_SessCount(1:total_output_rows), ...
+                out_Meta_DateRange(1:total_output_rows), ...
+                'VariableNames', {'Location', 'PicID', 'Pattern', 'StageID', 'SessionsAveraged', 'DateRange'});
+
+            % 去基线
+            if isfield(obj.Config, 'RemoveBaseline') && obj.Config.RemoveBaseline
+                epochData = epochData - mean(epochData(:,:,1:20), 3);
+            end
+
+            if verbose, fprintf('=== 切片完成 (耗时 %.2fs) ===\n', toc(tStart)); end
+
+            if p.Results.Save
+                obj.save_epoch_dataset(epochData, epochMeta, true, p.Results.SaveDir);
+            end
         end
 
     end

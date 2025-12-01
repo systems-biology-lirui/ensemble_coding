@@ -22,7 +22,7 @@ function config = Main_Config()
     config.TargetParadigms = {'EVENT'}; % 例如：只看 SSVEP，不看 EVENT
     
     % === Block 列表 ===
-    config.TargetBlocks = {'SSGnv'};
+    config.TargetBlocks = {'SSGv'};
     
     config.DataType = 'MUA2';
     if strcmp(config.TargetParadigms,'EVENT')
@@ -36,11 +36,7 @@ function config = Main_Config()
     % 假设: 图片呈现 40ms, 如果紧接着下一张，SOA=40ms。如果有空隙，SOA > 40ms。
     % 这里以常见的 10Hz RSVP 为例 (100ms一张)：
     config.StimDuration = 40;     % ms (仅用于记录/画图)
-    if strcmp(config.TargetParadigms,'EVENT')
-        config.StimSOA      = 520;    % ms (Stimulus Onset Asynchrony, 两张图开始时间的间隔)
-    else
-        config.StimSOA      = 40;
-    end
+    config.StimSOA      = 40;
     config.StimOffset   = 200;    % ms (Trial开始后多久出现第一张图, 对应 Datainfo 的 pre-stim padding)
     
     % 切片窗口 (相对于每张图的 Onset)
