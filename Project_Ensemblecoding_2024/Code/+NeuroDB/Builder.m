@@ -102,6 +102,7 @@ classdef Builder < handle
             fprintf('  [Pass 1] 扫描 %d 个 Session 文件...\n', height(BlockRows));
             [totalTrials, nCh, maxTime] = obj.prescan_dimensions(BlockRows, targetBlock);
             nCh = 100;
+            warning('DebugMode:Active', '注意！！！预分配的通道数目前被硬编码为 100，请在正式运行时考虑此行！');
             fprintf('  预分配: %d Trials, %d Ch, %d TimePoints\n', totalTrials, nCh, maxTime);
 
             LFP_Tensor = zeros(totalTrials, nCh, maxTime, 'int16');

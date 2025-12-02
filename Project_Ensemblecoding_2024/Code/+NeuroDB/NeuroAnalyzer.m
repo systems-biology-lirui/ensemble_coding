@@ -2,6 +2,7 @@ classdef NeuroAnalyzer < handle
     properties
         Subject
         BlockName
+        Paradigm    % [New] Store Paradigm explicitly
         DataPath
 
         % === 数据属性 ===
@@ -21,6 +22,7 @@ classdef NeuroAnalyzer < handle
         function obj = NeuroAnalyzer(subject, block, paradigmStr, dataType, dbPath)
             obj.Subject = subject;
             obj.BlockName = block;
+            obj.Paradigm = paradigmStr; % [New]
 
             % [Fix 1.1] 构建正确的文件名
             % 格式参考 Builder: Subject_Block_Paradigm_DataType_Master.mat
@@ -71,13 +73,35 @@ classdef NeuroAnalyzer < handle
                     % 混合策略：保留构建时的基本信息，更新分析参数
                     obj.Config = savedConfig;
 
-                    % 安全更新字段 (使用 isfield 检查)
-                    fieldsToUpdate = {'Fs', 'StimSOA', 'StimOffset', 'StimDuration', 'EpochWin'};
-                    for f = 1:length(fieldsToUpdate)
-                        fn = fieldsToUpdate{f};
-                        if isfield(currentConfig, fn)
-                            obj.Config.(fn) = currentConfig.(fn);
+                    % [Fix 3] Check for Paradigm Mismatch
+                    % 如果 Main_Config 里的 TargetParadigms 不包含当前数据的 Paradigm，
+                    % 则不要更新 StimSOA 等关键实验参数，防止错误覆盖。
+                    isMatch = false;
+                    if isfield(currentConfig, 'TargetParadigms')
+                        if any(strcmpi(currentConfig.TargetParadigms, obj.Paradigm))
+                            isMatch = true;
                         end
+                    else
+                        % 兼容旧版 Config (无 TargetParadigms 字段则假设匹配)
+                        isMatch = true; 
+                    end
+
+                    if isMatch
+                        fprintf('[Config] Paradigm Match (%s). Updating analysis params.\n', obj.Paradigm);
+                        % 安全更新字段 (使用 isfield 检查)
+                        fieldsToUpdate = {'Fs', 'StimSOA', 'StimOffset', 'StimDuration', 'EpochWin'};
+                        for f = 1:length(fieldsToUpdate)
+                            fn = fieldsToUpdate{f};
+                            if isfield(currentConfig, fn)
+                                obj.Config.(fn) = currentConfig.(fn);
+                            end
+                        end
+                    else
+                         fprintf('! [Warn] Paradigm Mismatch! Data=%s, Config=%s.\n', ...
+                             obj.Paradigm, strjoin(currentConfig.TargetParadigms, ','));
+                         fprintf('         Skipping global config update to protect StimSOA/StimOffset.\n');
+                         % 可选：仅更新 EpochWin (如果认为 EpochWin 是通用的)
+                         % if isfield(currentConfig, 'EpochWin'), obj.Config.EpochWin = currentConfig.EpochWin; end
                     end
                 catch ME
                     fprintf('! [Warn] Main_Config 运行出错: %s。使用文件内保存的 Config。\n', ME.message);
@@ -152,7 +176,7 @@ classdef NeuroAnalyzer < handle
 
                 % 提取当前 Long Trial 的元数据
                 cur_date = string(obj.MetaTable.DateCode(i));
-                if iscell(cur_date), cur_date = cur_date{1}; end
+                % if iscell(cur_date), cur_date = cur_date{1}; end
                 cur_sess = obj.MetaTable.SessionID(i);
                 cur_loc  = obj.MetaTable.Location(i);
                 if iscell(cur_loc), cur_loc = -1; end
@@ -720,6 +744,7 @@ classdef NeuroAnalyzer < handle
                     for i = 1:nGroups
                         processed_signal(i, :, :) = mean(single(obj.RawTensor(G==i, :, 41:1640)), 1);
                     end
+                    warning('DebugMode:Active', '注意！！！计算频谱的时间段 目前被硬编码为 41:1640，请在正式运行时考虑此行！');
 
                     resultMeta = table(t_loc, t_cond, 'VariableNames', {'Location', 'Condition'});
 
@@ -730,6 +755,7 @@ classdef NeuroAnalyzer < handle
 
                     % 显式转为 single，防止 int16 溢出
                     processed_signal = single(obj.RawTensor(:,:,41:1640));
+                    warning('DebugMode:Active', '注意！！！计算频谱的时间段 目前被硬编码为 41:1640，请在正式运行时考虑此行！');
 
                     % 元数据保持不变
                     resultMeta = meta;
@@ -1002,7 +1028,7 @@ classdef NeuroAnalyzer < handle
                 if isempty(seq), continue; end
 
                 cur_date = string(obj.MetaTable.DateCode(i));
-                if iscell(cur_date), cur_date = cur_date{1}; end
+                % if iscell(cur_date), cur_date = cur_date{1}; end
                 cur_sess = obj.MetaTable.SessionID(i);
                 cur_loc  = obj.MetaTable.Location(i);
                 if iscell(cur_loc), cur_loc = -1; end
