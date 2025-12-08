@@ -13,11 +13,11 @@ builder.run();
 % ---------------------------------------------------------%
 clear;
 macaques = {'DG','QQ_old','QQ_new'};
-labels = {'MGv','MGnv','SG','SSGnv'};
+labels = {'MGv'};
 for m = 1:length(macaques)
     for l = 1:length(labels)
         dbPath = 'D:/ensemble_coding/Project_Ensemblecoding_2024/Data/01_Database';
-        analyzer = NeuroDB.NeuroAnalyzer(macaques{m}, labels{l}, 'EVENT', 'MUA2', dbPath);
+        analyzer = NeuroDB.NeuroAnalyzer(macaques{m}, labels{l}, 'EVENT', 'LFP', dbPath);
         % 由于SSGnv实在是太多了，只选取和SSGv同样的数量进行（DG：61session）
         % analyzer.subset_sessions(61);
         % analyzer.subset_data('Condition', [-1, 1, 9]);

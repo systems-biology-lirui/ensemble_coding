@@ -234,7 +234,7 @@ for m_idx = 1:length(macaque_list)
         options.n_shuffles = 5;
         options.n_repetitions = 5;
         options.k_fold = 5;
-        options.time_smooth_win = 2;
+        options.time_smooth_win = 4;
         options.mode = 'cross_condition';
 
         [n_ori, n_pat, n_trial, n_ch, n_time] = size(Fit_Mat);

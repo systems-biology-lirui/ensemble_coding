@@ -1,6 +1,6 @@
 function config = Main_Config()
     % === 实验参数 ===
-    config.Subject_save = 'DG';
+    config.Subject_save = 'QQ_new';
     switch config.Subject_save
         case 'DG'
             config.Subject = 'DG';
@@ -22,9 +22,9 @@ function config = Main_Config()
     config.TargetParadigms = {'EVENT'}; % 例如：只看 SSVEP，不看 EVENT
     
     % === Block 列表 ===
-    config.TargetBlocks = {'SSGv'};
+    config.TargetBlocks = {'MGv'};
     
-    config.DataType = 'MUA2';
+    config.DataType = 'LFP';
     if strcmp(config.TargetParadigms,'EVENT')
         config.TrialLength = 1240; % EVENT1240
     else
