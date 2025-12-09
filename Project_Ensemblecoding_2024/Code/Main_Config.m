@@ -22,7 +22,7 @@ function config = main_config()
     config.TargetParadigms = {'EVENT'}; % 例如：只看 SSVEP，不看 EVENT
     
     % === Block 列表 ===
-    config.TargetBlocks = {'MGv'};
+    config.TargetBlocks = {'MGv','SG','MGnv'};
     
     config.DataType = 'LFP';
     if strcmp(config.TargetParadigms,'EVENT')

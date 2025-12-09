@@ -1,4 +1,4 @@
-function SSVEP_A_decoding_MGv_pipeline_new()
+function pipeline_ssvep_a_decoding_mgv()
 % SSVEP_A_decoding_MGv_Refactored
 % 功能：对 SSVEP_A 数据进行纯解码分析 (18朝向, [1,9]朝向, Pattern)
 % 更新：增加自动绘图与保存图片功能

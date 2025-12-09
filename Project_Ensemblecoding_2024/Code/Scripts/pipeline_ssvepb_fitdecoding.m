@@ -2,7 +2,7 @@
 % 逻辑：SSVEP 数据处理 (SSGv -> 拟合 -> MGv_SSVEP_B)
 % 策略：包含 3 种不同的拟合时间窗口策略
 % 解码测试：分别测试在 SSVEP_A (同分布) 和 EVENT (跨状态) 上的表现
-function ssvepb_fitdecoding_pipeline_new()
+function pipeline_ssvepb_fitdecoding()
 % 在第一行加上 function 声明，函数名与文件名一致
 
 
