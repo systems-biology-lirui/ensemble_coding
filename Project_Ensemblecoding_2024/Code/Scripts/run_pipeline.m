@@ -4,7 +4,7 @@ currentPath = fileparts(mfilename('fullpath')); % Code/Scripts
 rootPath = fileparts(fileparts(currentPath));   % Project Root
 addpath(genpath(fullfile(rootPath, 'Code')));   % 加入 Code 路径
 
-config = Main_Config();
+config = main_config();
 builder = NeuroDB.Builder(config);
 builder.run();
 
@@ -12,12 +12,12 @@ builder.run();
 %% ------------------trial水平的处理----------------------- %
 % ---------------------------------------------------------%
 clear;
-macaques = {'DG','QQ_old','QQ_new'};
+macaques = {'DG'};
 labels = {'MGv'};
 for m = 1:length(macaques)
     for l = 1:length(labels)
         dbPath = 'D:/ensemble_coding/Project_Ensemblecoding_2024/Data/01_Database';
-        analyzer = NeuroDB.NeuroAnalyzer(macaques{m}, labels{l}, 'EVENT', 'LFP', dbPath);
+        analyzer = NeuroDB.NeuroAnalyzer(macaques{m}, labels{l}, 'SSVEP_A', 'LFP', dbPath);
         % 由于SSGnv实在是太多了，只选取和SSGv同样的数量进行（DG：61session）
         % analyzer.subset_sessions(61);
         % analyzer.subset_data('Condition', [-1, 1, 9]);
@@ -36,7 +36,7 @@ for m = 1:length(macaques)
                 analyzer.MetaTable.Location(i) = 0;
             end
         end
-        [~, ~] = analyzer.slice_epochs('SingleTrials',true ,'Save', true);
+        % [~, ~] = analyzer.slice_epochs('SingleTrials',true ,'Save', true);
     end
 end
 %%
@@ -56,9 +56,9 @@ analyzer.filter_raw_data()
 % info.Meta: 对应的元数据 (包含 Date, Session, Location 等)
 % info.SNR:  [nGroups, nCh, nFreq] (信噪比谱)
 
-fftresult.dg.ssgnv.psdData = psdData;
-fftresult.dg.ssgnv.meta = info.Meta;
-fftresult.dg.ssgnv.SNR = info.SNR;
+% fftresult.dg.ssgnv.psdData = psdData;
+% fftresult.dg.ssgnv.meta = info.Meta;
+% fftresult.dg.ssgnv.SNR = info.SNR;
 %% ------------ 2.d-prime ------------%
 % 这个做的不太行
 [dp1, ~] = analyzer.analyze_dprime(DG_SSGnv_fft.SNR(:,channels,:), info.Meta, fVec, 25);

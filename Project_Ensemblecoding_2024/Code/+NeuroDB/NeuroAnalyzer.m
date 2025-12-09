@@ -64,11 +64,11 @@ classdef NeuroAnalyzer < handle
             % [Fix 2] Config 鲁棒性处理
             savedConfig = D.Config;
 
-            % 检查当前路径下是否有 Main_Config
-            if exist('Main_Config.m', 'file') || exist('Main_Config', 'file')
+            % 检查当前路径下是否有 main_config
+            if exist('main_config.m', 'file') || exist('main_config', 'file')
                 try
-                    currentConfig = Main_Config();
-                    fprintf('[Config] 使用当前 Main_Config 更新分析参数。\n');
+                    currentConfig = main_config();
+                    fprintf('[Config] 使用当前 main_config 更新分析参数。\n');
 
                     % 混合策略：保留构建时的基本信息，更新分析参数
                     obj.Config = savedConfig;
@@ -104,11 +104,11 @@ classdef NeuroAnalyzer < handle
                          % if isfield(currentConfig, 'EpochWin'), obj.Config.EpochWin = currentConfig.EpochWin; end
                     end
                 catch ME
-                    fprintf('! [Warn] Main_Config 运行出错: %s。使用文件内保存的 Config。\n', ME.message);
+                    fprintf('! [Warn] main_config 运行出错: %s。使用文件内保存的 Config。\n', ME.message);
                     obj.Config = savedConfig;
                 end
             else
-                fprintf('[Config] 未找到 Main_Config，使用数据文件内保存的配置。\n');
+                fprintf('[Config] 未找到 main_config，使用数据文件内保存的配置。\n');
                 obj.Config = savedConfig;
             end
 

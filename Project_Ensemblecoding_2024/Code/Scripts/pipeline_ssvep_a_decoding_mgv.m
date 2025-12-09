@@ -63,7 +63,7 @@ function SSVEP_A_decoding_MGv_pipeline_new()
             
             % --- 构建 5D 矩阵 ---
             % Mat_5D: [nOri, nPat, nTrial, nCh, nTime]
-            [Mat_5D, ~] = build_5d_matrix(data.EpochDB, n_ori, n_pat, target_ori_list);
+            [Mat_5D, ~] = NeuroTool.build_5d_matrix(data.EpochDB, n_ori, n_pat, target_ori_list);
             [nOri, nPat, nTrial, nCh, nTime] = size(Mat_5D);
             
             % =========================================================

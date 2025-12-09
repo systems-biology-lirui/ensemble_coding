@@ -1,4 +1,4 @@
-function SSGv = getSSGvPattern(MGv,SSGv)
+function SSGv = get_ssgv_pattern(MGv,SSGv)
     for i = 1:height(SSGv.FinalData.Meta)
         condition = SSGv.FinalData.Meta.Condition(i);
         idx = find(MGv.FinalData.Meta.Condition == condition,1,'first');

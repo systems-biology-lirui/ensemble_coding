@@ -1,4 +1,4 @@
-function config = Main_Config()
+function config = main_config()
     % === 实验参数 ===
     config.Subject_save = 'QQ_new';
     switch config.Subject_save
